@@ -7,3 +7,1064 @@ const DEFAULT_LOCATIONS = [
   { id: "CIN", name: "Cisnădie Cindrelul" },
   { id: "PRO", name: "Cisnădie Producție" },
 ];
+const DEPTS = [
+  { id: "buc", name: "Bucătărie", color: "bg-amber-100 text-amber-800" },
+  { id: "bar", name: "Bar", color: "bg-sky-100 text-sky-800" },
+  { id: "cof", name: "Cofetărie", color: "bg-pink-100 text-pink-800" },
+  { id: "pro", name: "Producție", color: "bg-violet-100 text-violet-800" },
+  { id: "b2b", name: "Client B2B", color: "bg-teal-100 text-teal-800" },
+];
+const ALLD = ["buc", "bar", "cof", "pro"];
+
+const DEMO_USERS = [
+  { id: 1, name: "Ionuț", pin: "1111", role: "admin", locs: ["SOM", "BAL", "CIN", "PRO"], depts: ["buc", "bar", "cof", "pro"], direct: true, approverId: null, canAddUsers: true },
+  { id: 2, name: "Mirabela", pin: "2222", role: "aprobator", locs: ["SOM", "BAL"], depts: ["buc", "bar", "cof"], direct: true, approverId: null, canAddUsers: true },
+  { id: 3, name: "Radu", pin: "3333", role: "angajat", locs: ["BAL", "SOM", "CIN"], depts: ["bar"], direct: true, approverId: 2, canAddUsers: true },
+  { id: 4, name: "Luminița", pin: "4444", role: "angajat", locs: ["SOM"], depts: ["cof"], direct: true, approverId: 2, canAddUsers: true },
+  { id: 5, name: "Daniel", pin: "5555", role: "angajat", locs: ["SOM"], depts: ["buc"], direct: false, approverId: 2, canAddUsers: false },
+  { id: 6, name: "Gabi", pin: "6666", role: "angajat", locs: ["BAL"], depts: ["buc"], direct: false, approverId: 2, canAddUsers: false },
+];
+
+const DEMO_SUPPLIERS = [
+  { id: "metro", name: "Metro", phone: "40722000001", days: "Comenzi: zilnic până la 14:00", pickup: true,
+    templates: { BAL: "Comandă Turtha — Bălcescu:", SOM: "Comandă Turtha — Someșului:", CIN: "Comandă Turtha — Cisnădie Cindrelul:", PRO: "Comandă Turtha — Producție Cisnădie:" } },
+  { id: "selgros", name: "Selgros", phone: "40722000002", days: "Ridicare de șofer", pickup: true,
+    templates: { BAL: "De luat de la Selgros pentru Bălcescu:", SOM: "De luat de la Selgros pentru Someșului:", CIN: "De luat de la Selgros pentru Cisnădie:", PRO: "De luat de la Selgros pentru Producție:" } },
+  { id: "kaufland", name: "Kaufland", phone: "40722000003", days: "Ridicare de șofer", pickup: true,
+    templates: { BAL: "De luat de la Kaufland pentru Bălcescu:", SOM: "De luat de la Kaufland pentru Someșului:", CIN: "De luat de la Kaufland pentru Cisnădie:", PRO: "De luat de la Kaufland pentru Producție:" } },
+  { id: "lidl", name: "Lidl", phone: "40722000004", days: "Ridicare de șofer", pickup: true,
+    templates: { BAL: "De luat de la Lidl pentru Bălcescu:", SOM: "De luat de la Lidl pentru Someșului:", CIN: "De luat de la Lidl pentru Cisnădie:", PRO: "De luat de la Lidl pentru Producție:" } },
+  { id: "miramax", name: "Miramax", phone: "40722000005", days: "Zile de comandă: miercuri și duminică", pickup: false,
+    templates: { BAL: "Comandă Turtha Bălcescu (livrare separată de Someșului!):", SOM: "Comandă Turtha Someșului:", CIN: "Comandă Turtha Cisnădie:", PRO: "Comandă Producție Cisnădie:" } },
+  { id: "albota", name: "Albota", phone: "40722000006", days: "Livrare locală — păstrăvărie/brânzeturi", pickup: false,
+    templates: { BAL: "Bună ziua! Comandă Turtha Bălcescu:", SOM: "Bună ziua! Comandă Turtha Someșului:", CIN: "Bună ziua! Comandă Turtha Cisnădie:", PRO: "Bună ziua! Comandă Producție Cisnădie:" } },
+  { id: "hala", name: "Hala", phone: "40722000007", days: "Piață/Hală — ridicare de șofer", pickup: true,
+    templates: { BAL: "De luat din Hală pentru Bălcescu:", SOM: "De luat din Hală pentru Someșului:", CIN: "De luat din Hală pentru Cisnădie:", PRO: "De luat din Hală pentru Producție:" } },
+  { id: "centrala", name: "Centrala (producție internă)", phone: "40722000008", days: "Producție internă Cisnădie", pickup: true,
+    templates: { BAL: "Necesar de la Producție → Bălcescu:", SOM: "Necesar de la Producție → Someșului:", CIN: "Necesar de la Producție → Cisnădie Cindrelul:", PRO: "Necesar intern Producție:" } },
+];
+
+const DEMO_PRODUCTS = [
+  { id: 1, name: "Piept pui", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 2, name: "Pulpe pui", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 3, name: "Pulpe pui dezosate cu piele", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 4, name: "Ceafă porc", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 5, name: "Vrăbioară", cat: "Carne", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 6, name: "Bacon", cat: "Carne", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 7, name: "Cârnați", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 8, name: "Somon proaspăt", cat: "Pește", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 9, name: "Feta", cat: "Lactate & Brânzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 10, name: "Telemea vacă", cat: "Lactate & Brânzeturi", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 11, name: "Brie", cat: "Lactate & Brânzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 12, name: "Gorgonzola", cat: "Lactate & Brânzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 13, name: "Parmezan calup", cat: "Lactate & Brânzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 14, name: "Smântână", cat: "Lactate & Brânzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
+  { id: 15, name: "Iaurt", cat: "Lactate & Brânzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
+  { id: 16, name: "Ouă", cat: "Lactate & Brânzeturi", um: "cofraj", sup: "metro", depts: ["buc", "cof", "pro"] },
+  { id: 17, name: "Ceapă chives", cat: "Legume & Fructe", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 18, name: "Microplante", cat: "Legume & Fructe", um: "buc", sup: "metro", depts: ["buc", "bar"] },
+  { id: 19, name: "Cartofi mov", cat: "Legume & Fructe", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 20, name: "Mango proaspăt", cat: "Legume & Fructe", um: "kg", sup: "metro", depts: ["buc", "bar", "cof"] },
+  { id: 21, name: "Mango congelat", cat: "Congelate", um: "pungă", sup: "metro", depts: ["buc", "bar", "cof"] },
+  { id: 22, name: "Creveți congelați", cat: "Congelate", um: "pungă", sup: "metro", depts: ["buc"] },
+  { id: 23, name: "Năut conservă", cat: "Băcănie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 24, name: "Fasole în sos tomat", cat: "Băcănie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 25, name: "Nachos", cat: "Băcănie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 26, name: "Tortilla chips", cat: "Băcănie", um: "pungă", sup: "metro", depts: ["buc"] },
+  { id: 27, name: "Murături asortate", cat: "Băcănie", um: "bidon", sup: "metro", depts: ["buc"] },
+  { id: 28, name: "Ulei floarea-soarelui", cat: "Băcănie", um: "l", sup: "metro", depts: ["buc", "pro"], stepQty: 5, packLabel: "bidon 5 l" },
+  { id: 29, name: "Ulei măsline", cat: "Băcănie", um: "l", sup: "metro", depts: ["buc"] },
+  { id: 30, name: "Muștar Dijon", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
+  { id: 31, name: "Muștar boabe", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
+  { id: 32, name: "Sos cheddar", cat: "Sosuri & Condimente", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 33, name: "Sos BBQ", cat: "Sosuri & Condimente", um: "bidon", sup: "metro", depts: ["buc"] },
+  { id: 34, name: "Cardamom praf", cat: "Sosuri & Condimente", um: "buc", sup: "metro", depts: ["buc", "cof"] },
+  { id: 35, name: "Vin roșu gătit", cat: "Băuturi", um: "cutie", sup: "metro", depts: ["buc"] },
+  { id: 36, name: "Folie aluminiu", cat: "Curățenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
+  { id: 37, name: "Soluție spălat vase", cat: "Curățenie & Consumabile", um: "bidon", sup: "metro", depts: ALLD },
+  { id: 38, name: "Sano Forte", cat: "Curățenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
+  { id: 39, name: "Suport tacâmuri industrial", cat: "Curățenie & Consumabile", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 40, name: "Cartofi dulci", cat: "Legume & Fructe", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 41, name: "Cartofi dulci pt. prăjit", cat: "Congelate", um: "pungă", sup: "miramax", depts: ["buc"] },
+  { id: 42, name: "Parmezan", cat: "Lactate & Brânzeturi", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 43, name: "Tahini", cat: "Băcănie", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 44, name: "Fasole brună", cat: "Băcănie", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 45, name: "Somon afumat", cat: "Pește", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 46, name: "Panko", cat: "Băcănie", um: "pungă", sup: "miramax", depts: ["buc"] },
+  { id: 47, name: "Ceapă crocantă", cat: "Băcănie", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 48, name: "Piper măcinat", cat: "Sosuri & Condimente", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 49, name: "Avocado", cat: "Legume & Fructe", um: "buc", sup: "kaufland", depts: ["buc", "bar"] },
+  { id: 50, name: "Rodie", cat: "Legume & Fructe", um: "buc", sup: "kaufland", depts: ["buc", "bar"] },
+  { id: 51, name: "Păstrăv afumat", cat: "Pește", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 52, name: "Brânză cu chilli", cat: "Lactate & Brânzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 53, name: "Brânză cu trufe", cat: "Lactate & Brânzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 54, name: "Brânză cu fistic", cat: "Lactate & Brânzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 55, name: "Brânză feta Albota", cat: "Lactate & Brânzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 56, name: "Cărbuni", cat: "Curățenie & Consumabile", um: "buc", sup: "hala", depts: ["buc"] },
+  { id: 57, name: "Burger (carne)", cat: "Producție internă", um: "buc", sup: "centrala", depts: ["buc"] },
+  { id: 58, name: "Dulceață de ardei", cat: "Producție internă", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 59, name: "Granola", cat: "Producție internă", um: "kg", sup: "centrala", depts: ["buc", "cof"] },
+  { id: 60, name: "Vită quesadilla", cat: "Producție internă", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 61, name: "Pulled pork", cat: "Producție internă", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 62, name: "Sirop mango", cat: "Producție internă", um: "pungă", sup: "centrala", depts: ["bar", "b2b"] },
+  { id: 63, name: "Croissant unt", cat: "Producție internă", um: "buc", sup: "centrala", depts: ["b2b", "cof"] },
+  { id: 64, name: "Ciocolată neagră", cat: "Băcănie", um: "kg", sup: "metro", depts: ["buc", "cof"], stepQty: 5, minQty: 5, packLabel: "găleată 5 kg" },
+];
+
+const STORE_KEY = "turtha-necesar-v7";
+
+// ---------- HELPERS ----------
+const deptOf = (id) => DEPTS.find((d) => d.id === id) || DEPTS[0];
+const fmtDate = (ts) => new Date(ts).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const fmtDay = (ts) => new Date(ts).toLocaleDateString("ro-RO");
+
+// Cantitate validă respectând stepQty și minQty
+const validQty = (qty, p) => {
+  if (!p || qty <= 0) return 0;
+  const step = p.stepQty || 1;
+  const min = p.minQty || 0;
+  if (step <= 1) return qty;
+  const snapped = Math.round(qty / step) * step || step;
+  return min > 0 ? Math.max(snapped, min) : snapped;
+};
+
+export default function NecesarTurtha() {
+  const [users, setUsers] = useState(DEMO_USERS);
+  const [products, setProducts] = useState(DEMO_PRODUCTS);
+  const [suppliers, setSuppliers] = useState(DEMO_SUPPLIERS);
+  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
+  const [items, setItems] = useState([]);
+  const [receptions, setReceptions] = useState({}); // orderRef -> { productId: recQty }
+  const [seq, setSeq] = useState(1);
+  const [loaded, setLoaded] = useState(false);
+
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [activeLoc, setActiveLoc] = useState(null);
+  const [activeDept, setActiveDept] = useState(null);
+  const [pinInput, setPinInput] = useState("");
+  const [tab, setTab] = useState("necesar");
+  const [cart, setCart] = useState({});
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("Toate");
+  const [expanded, setExpanded] = useState({});
+  const [toast, setToast] = useState(null);
+  const [adminView, setAdminView] = useState("utilizatori");
+  const [newProd, setNewProd] = useState({ name: "", cat: "Băcănie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
+  const [newLoc, setNewLoc] = useState({ id: "", name: "" });
+  const [newUser, setNewUser] = useState({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
+  const [histSup, setHistSup] = useState("toti");
+  const [histSearch, setHistSearch] = useState("");
+  const [histDay, setHistDay] = useState("");
+
+  const locName = (id) => locations.find((l) => l.id === id)?.name || id;
+  const activeLocations = locations.filter((l) => !l.pending);
+
+  // ---------- PERSISTENȚĂ ----------
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.storage.get(STORE_KEY);
+        if (r && r.value) {
+          const d = JSON.parse(r.value);
+          if (d.users) setUsers(d.users);
+          if (d.products) setProducts(d.products);
+          if (d.suppliers) setSuppliers(d.suppliers);
+          if (d.locations) setLocations(d.locations);
+          if (d.items) setItems(d.items);
+          if (d.receptions) setReceptions(d.receptions);
+          if (d.seq) setSeq(d.seq);
+        }
+      } catch (e) { /* prima rulare — date demo */ }
+      setLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      try {
+        await window.storage.set(STORE_KEY, JSON.stringify({ users, products, suppliers, locations, items, receptions, seq }));
+      } catch (e) { console.error("Salvare eșuată", e); }
+    })();
+  }, [users, products, suppliers, locations, items, receptions, seq, loaded]);
+
+  const me = users.find((u) => u.id === currentUserId);
+  const isApprover = me && (me.role === "aprobator" || me.role === "admin");
+  const isAdmin = me && me.role === "admin";
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  // ---------- LOGIN (doar PIN, fără listă de utilizatori) ----------
+  const tryLogin = () => {
+    const u = users.find((x) => !x.pending && x.pin === pinInput);
+    if (u) {
+      setCurrentUserId(u.id);
+      setActiveLoc(u.locs[0]);
+      setActiveDept(u.depts[0]);
+      setTab("necesar");
+      setPinInput("");
+    } else {
+      showToast("PIN necunoscut");
+      setPinInput("");
+    }
+  };
+
+  const logout = () => { setCurrentUserId(null); setActiveLoc(null); setActiveDept(null); setCart({}); };
+
+  // ---------- ACȚIUNI ----------
+  const submitCart = () => {
+    const entries = Object.entries(cart).filter(([, q]) => q > 0);
+    if (!entries.length) return;
+    const status = me.direct ? "de_trimis" : "in_aprobare";
+    let s = seq;
+    const newItems = entries.map(([pid, qty]) => ({
+      id: s++, productId: Number(pid), qty, userId: me.id, loc: activeLoc, dept: activeDept, status, ts: Date.now(),
+      deliveryDate: deliveryDate || null,
+    }));
+    setSeq(s);
+    setItems((prev) => [...prev, ...newItems]);
+    setCart({});
+    setDeliveryDate("");
+    showToast(status === "de_trimis" ? "Necesar adăugat — gata de trimis" : "Necesar trimis spre aprobare");
+    setTab("comenzi");
+  };
+
+  const canApproveItem = (it) => {
+    if (isAdmin) return true;
+    const owner = users.find((u) => u.id === it.userId);
+    return owner && owner.approverId === me.id;
+  };
+
+  const approveGroup = (loc, sup) => {
+    setItems((prev) => prev.map((it) => {
+      const p = products.find((x) => x.id === it.productId);
+      if (it.status === "in_aprobare" && it.loc === loc && p && p.sup === sup && canApproveItem(it)) {
+        return { ...it, status: "de_trimis" };
+      }
+      return it;
+    }));
+    showToast("Aprobat — mutat la De trimis");
+  };
+
+  const updateQty = (itemId, delta) => {
+    setItems((prev) => prev.map((it) => {
+      if (it.id !== itemId) return it;
+      const p = products.find((x) => x.id === it.productId);
+      const step = p?.stepQty || 1;
+      const newQty = it.qty + delta * step;
+      if (newQty <= 0) return null;
+      return { ...it, qty: validQty(newQty, p) || step };
+    }).filter(Boolean));
+  };
+
+  const sendGroup = (loc, supId, groupItems) => {
+    const sup = suppliers.find((s) => s.id === supId);
+    const header = (sup.templates && sup.templates[loc]) || `Comandă Turtha ${locName(loc)}:`;
+    const byProd = {};
+    groupItems.forEach((it) => {
+      const p = products.find((x) => x.id === it.productId);
+      if (!byProd[p.id]) byProd[p.id] = { name: p.name, um: p.um, qty: 0, stepQty: p.stepQty, packLabel: p.packLabel };
+      byProd[p.id].qty += it.qty;
+    });
+    const lines = Object.values(byProd).map((r) => {
+      const packSuffix = r.packLabel && r.stepQty && r.stepQty > 1
+        ? ` (${r.qty / r.stepQty} x ${r.packLabel})` : "";
+      return `• ${r.name} — ${r.qty} ${r.um}${packSuffix}`;
+    });
+    const dDate = groupItems.find((it) => it.deliveryDate)?.deliveryDate;
+    const dLine = dDate ? `\nLivrare dorită: ${new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}` : "";
+    const msg = `${header}\n\n${lines.join("\n")}${dLine}\n\nMulțumim!`;
+    const url = `https://wa.me/${sup.phone}?text=${encodeURIComponent(msg)}`;
+    const orderRef = `${Date.now()}-${supId}-${loc}`;
+    setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "trimis", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
+    window.open(url, "_blank");
+    showToast(`Comandă ${sup.name} · ${locName(loc)} trimisă`);
+  };
+
+  const setReception = (orderRef, productId, qty) => {
+    setReceptions((prev) => ({ ...prev, [orderRef]: { ...(prev[orderRef] || {}), [productId]: qty } }));
+  };
+
+  // ---------- FOAIE ȘOFER (printabil A4) ----------
+  const printDriverSheet = (groups) => {
+    const w = window.open("", "_blank");
+    if (!w) { showToast("Permite pop-up pentru printare"); return; }
+    const sections = groups.map((g) => {
+      const sup = suppliers.find((s) => s.id === g.sup);
+      const byProd = {};
+      g.items.forEach((it) => {
+        const p = products.find((x) => x.id === it.productId);
+        if (!byProd[p.id]) byProd[p.id] = { name: p.name, um: p.um, qty: 0 };
+        byProd[p.id].qty += it.qty;
+      });
+      const rows = Object.values(byProd).map((r) =>
+        `<tr><td class="chk">☐</td><td>${r.name}</td><td class="qty">${r.qty} ${r.um}</td><td class="luat"></td></tr>`
+      ).join("");
+      return `<h2>${sup.name} — ${locName(g.loc)}</h2>
+        <table><tr><th class="chk">✔</th><th>Produs</th><th class="qty">Cantitate</th><th class="luat">Luat / Obs.</th></tr>${rows}</table>`;
+    }).join("");
+    w.document.write(`<html><head><title>Foaie șofer Turtha</title><style>
+      body{font-family:Arial,sans-serif;padding:24px;color:#111}
+      h1{font-size:18px;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:4px}
+      .sub{font-size:12px;color:#555;margin-bottom:14px}
+      h2{font-size:15px;margin:16px 0 6px}
+      table{width:100%;border-collapse:collapse;margin-bottom:6px}
+      td,th{border:1px solid #888;padding:6px 8px;font-size:13px;text-align:left}
+      th{background:#eee}
+      .chk{width:34px;text-align:center;font-size:16px}
+      .qty{width:110px}
+      .luat{width:130px}
+      @media print { body{padding:8px} }
+    </style></head><body>
+      <h1>Foaie ridicare — Turtha</h1>
+      <div class="sub">Generată: ${new Date().toLocaleString("ro-RO")} · de ${me.name}</div>
+      ${sections}
+    </body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 300);
+  };
+
+  // ---------- PROPUNERI ----------
+  const addProduct = () => {
+    if (!newProd.name.trim()) return;
+    if (!newProd.depts.length) { showToast("Bifează cel puțin un departament"); return; }
+    const pending = !isAdmin;
+    const prodData = { ...newProd };
+    if (!prodData.stepQty) delete prodData.stepQty;
+    if (!prodData.minQty) delete prodData.minQty;
+    if (!prodData.packLabel) delete prodData.packLabel;
+    setProducts((ps) => [...ps, { ...prodData, id: Math.max(0, ...ps.map((p) => p.id)) + 1, pending, proposedBy: me.id }]);
+    setNewProd({ name: "", cat: "Băcănie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
+    showToast(pending ? "Propunere trimisă adminului" : "Produs adăugat");
+  };
+
+  const addLocation = () => {
+    const id = newLoc.id.trim(); const name = newLoc.name.trim();
+    if (!id || !name) { showToast("Completează codul și numele"); return; }
+    if (locations.some((l) => l.id === id)) { showToast("Codul există deja"); return; }
+    const pending = !isAdmin;
+    setLocations((ls) => [...ls, { id, name, pending }]);
+    setNewLoc({ id: "", name: "" });
+    showToast(pending ? "Propunere trimisă adminului" : "Locație adăugată");
+  };
+
+  const addUser = () => {
+    if (!newUser.name.trim()) { showToast("Completează numele"); return; }
+    if (!/^\d{4}$/.test(newUser.pin)) { showToast("PIN-ul trebuie să aibă 4 cifre"); return; }
+    if (users.some((u) => u.pin === newUser.pin)) { showToast("PIN-ul există deja — alege altul"); return; }
+    if (!newUser.locs.length) { showToast("Bifează cel puțin o locație"); return; }
+    if (!newUser.depts.length) { showToast("Bifează cel puțin un departament"); return; }
+    const pending = !(isAdmin || me.canAddUsers);
+    setUsers((us) => [...us, {
+      ...newUser, id: Math.max(0, ...us.map((u) => u.id)) + 1, role: "angajat", direct: false, canAddUsers: false,
+      approverId: newUser.approverId || (isAdmin ? null : me.id), pending,
+    }]);
+    setNewUser({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
+    showToast(pending ? "Propunere trimisă adminului" : "Utilizator adăugat — poate intra cu PIN-ul lui");
+  };
+
+  // ---------- GRUPARE ----------
+  const groupItems = (status, onlyMine = false) => {
+    const map = {};
+    items.filter((it) => it.status === status && (!onlyMine || canApproveItem(it))).forEach((it) => {
+      const p = products.find((x) => x.id === it.productId);
+      if (!p) return;
+      const key = `${it.loc}|${p.sup}`;
+      if (!map[key]) map[key] = { loc: it.loc, sup: p.sup, items: [] };
+      map[key].items.push(it);
+    });
+    return Object.values(map);
+  };
+
+  // cantitate deja în comenzi deschise pentru produs, pe locația activă
+  const openQty = (productId) => items
+    .filter((it) => it.productId === productId && it.loc === activeLoc && (it.status === "in_aprobare" || it.status === "de_trimis"))
+    .reduce((a, b) => a + b.qty, 0);
+
+  const myProducts = me ? products.filter((p) => !p.pending && p.depts.includes(activeDept)) : [];
+  const cats = useMemo(() => ["Toate", ...Array.from(new Set(myProducts.map((p) => p.cat)))], [products, activeDept, currentUserId]);
+  const visibleProducts = myProducts.filter((p) =>
+    (catFilter === "Toate" || p.cat === catFilter) && p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // ---------- COMPONENTE ----------
+  const Badge = ({ loc }) => (
+    <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-stone-800 text-stone-100 tracking-wider">{loc}</span>
+  );
+
+  const ProductBreakdown = ({ groupList }) => (
+    <div className="mt-1 ml-2 border-l-2 border-dashed border-stone-300 pl-3 space-y-1">
+      {groupList.map((it) => {
+        const u = users.find((x) => x.id === it.userId);
+        const d = deptOf(it.dept);
+        const p = products.find((x) => x.id === it.productId);
+        return (
+          <div key={it.id} className="flex items-center justify-between text-xs text-stone-600">
+            <span className="flex items-center gap-1.5">
+              <span className={`px-1.5 py-0.5 rounded-full ${d.color}`}>{d.name}</span>
+              <span>{u ? u.name : "?"}</span>
+            </span>
+            <span className="font-mono">{it.qty} {p.um}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const OrderCard = ({ group, mode }) => {
+    const sup = suppliers.find((s) => s.id === group.sup);
+    const byProd = {};
+    group.items.forEach((it) => {
+      if (!byProd[it.productId]) byProd[it.productId] = [];
+      byProd[it.productId].push(it);
+    });
+    const canSendThis = isApprover || (me && me.direct && me.locs.includes(group.loc));
+    const dDate = group.items.find((it) => it.deliveryDate)?.deliveryDate;
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden mb-3">
+        <div className="px-4 py-3 flex items-center justify-between border-b border-dashed border-stone-300 bg-stone-50">
+          <div>
+            <div className="font-bold text-stone-900">{sup.name}</div>
+            <div className="text-xs text-stone-500">{sup.days}</div>
+            {dDate && <div className="text-xs text-emerald-700 font-medium">Livrare dorită: {new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}</div>}
+          </div>
+          <Badge loc={group.loc} />
+        </div>
+        <div className="px-4 py-2 divide-y divide-stone-100">
+          {Object.entries(byProd).map(([pid, list]) => {
+            const p = products.find((x) => x.id === Number(pid));
+            const total = list.reduce((a, b) => a + b.qty, 0);
+            const key = `${mode}-${group.loc}-${group.sup}-${pid}`;
+            return (
+              <div key={pid} className="py-2">
+                <button className="w-full flex items-center justify-between text-left"
+                  onClick={() => setExpanded((e) => ({ ...e, [key]: !e[key] }))}>
+                  <span className="text-sm text-stone-800">{p.name}</span>
+                  <span className="font-mono text-sm font-semibold text-stone-900">
+                    {total} {p.um} <span className="text-stone-400 ml-1">{expanded[key] ? "▾" : "▸"}</span>
+                  </span>
+                </button>
+                {expanded[key] && (
+                  <div>
+                    <ProductBreakdown groupList={list} />
+                    {mode === "aprobare" && isApprover && (
+                      <div className="mt-2 ml-2 pl-3 space-y-1">
+                        {list.map((it) => {
+                          const pp = products.find((x) => x.id === it.productId);
+                          const step = pp?.stepQty || 1;
+                          return (
+                            <div key={it.id} className="flex items-center gap-2 text-xs">
+                              <span className="text-stone-500">ajustează:</span>
+                              <button onClick={() => updateQty(it.id, -1)} className="w-6 h-6 rounded bg-stone-200 font-bold">−</button>
+                              <span className="font-mono w-14 text-center">{it.qty} {pp?.um}</span>
+                              <button onClick={() => updateQty(it.id, +1)} className="w-6 h-6 rounded bg-stone-200 font-bold">+</button>
+                              {step > 1 && <span className="text-stone-400">pas: {step}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="px-4 py-3 bg-stone-50 border-t border-stone-100">
+          {mode === "aprobare" && isApprover && (
+            <button onClick={() => approveGroup(group.loc, group.sup)} className="w-full py-2.5 rounded-lg bg-stone-900 text-white font-semibold text-sm">
+              Aprobă comanda
+            </button>
+          )}
+          {mode === "de_trimis" && (canSendThis ? (
+            <div className="flex gap-2">
+              <button onClick={() => sendGroup(group.loc, group.sup, group.items)} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: "#1FAF54" }}>
+                WhatsApp → {sup.name}
+              </button>
+              <button onClick={() => printDriverSheet([group])} className="px-3 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">🖨</button>
+            </div>
+          ) : (
+            <div className="text-xs text-center text-stone-500">Doar un aprobator poate trimite această comandă</div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // istoric: comenzi trimise grupate pe orderRef, cumulate pe produs, cu recepție
+  const SentOrderCard = ({ orderRef, list }) => {
+    const first = list[0];
+    const p0 = products.find((x) => x.id === first.productId);
+    const sup = suppliers.find((s) => s.id === p0?.sup);
+    const sender = users.find((u) => u.id === first.sentBy);
+    const byProd = {};
+    list.forEach((it) => {
+      const p = products.find((x) => x.id === it.productId);
+      if (!byProd[p.id]) byProd[p.id] = { p, qty: 0 };
+      byProd[p.id].qty += it.qty;
+    });
+    const rec = receptions[orderRef] || {};
+    const prods = Object.values(byProd);
+    const recStatus = prods.every((r) => rec[r.p.id] === r.qty) ? "complet"
+      : prods.some((r) => rec[r.p.id] != null) ? "parțial" : null;
+    const canReceive = isApprover || me.locs.includes(first.loc);
+    const key = `hist-${orderRef}`;
+    return (
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden mb-2">
+        <button className="w-full px-4 py-3 flex items-center justify-between text-left"
+          onClick={() => setExpanded((e) => ({ ...e, [key]: !e[key] }))}>
+          <div>
+            <div className="font-semibold text-stone-900 text-sm">{sup?.name} <span className="text-stone-400">·</span> {locName(first.loc)}</div>
+            <div className="text-xs text-stone-500">{fmtDate(first.sentTs)} · trimisă de {sender?.name || "?"} · {prods.length} produse</div>
+          </div>
+          <div className="flex items-center gap-2">
+            {recStatus === "complet" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">recepționat</span>}
+            {recStatus === "parțial" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">parțial</span>}
+            <span className="text-stone-400">{expanded[key] ? "▾" : "▸"}</span>
+          </div>
+        </button>
+        {expanded[key] && (
+          <div className="px-4 pb-3 divide-y divide-stone-100">
+            {prods.map(({ p, qty }) => (
+              <div key={p.id} className="py-2 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm text-stone-800">{p.name}</div>
+                  <div className="text-xs text-stone-500">comandat: <span className="font-mono font-semibold">{qty} {p.um}</span></div>
+                </div>
+                {canReceive && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input type="number" min="0" placeholder="primit" value={rec[p.id] ?? ""}
+                      onChange={(e) => setReception(orderRef, p.id, e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))}
+                      className="w-16 text-center font-mono text-sm border border-stone-300 rounded-lg py-1" />
+                    <button onClick={() => setReception(orderRef, p.id, qty)}
+                      className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${rec[p.id] === qty ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>✓ tot</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---------- LOGIN ----------
+  if (!me) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: "#EFF1EC", fontFamily: "ui-sans-serif, system-ui" }}>
+        <div className="px-6 pt-12 pb-8" style={{ background: "#22402F" }}>
+          <div className="text-emerald-200 text-xs font-mono tracking-[0.25em] uppercase">Turtha</div>
+          <h1 className="text-3xl font-extrabold text-white mt-1">Necesar</h1>
+          <p className="text-emerald-100/70 text-sm mt-1">Comenzi către furnizori, pe locații</p>
+        </div>
+        <div className="p-6 flex flex-col items-center mt-6">
+          <div className="text-sm text-stone-600 mb-4 font-medium">Introdu PIN-ul tău</div>
+          <input autoFocus type="password" inputMode="numeric" maxLength={4} value={pinInput}
+            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => { if (e.key === "Enter" && pinInput.length === 4) tryLogin(); }}
+            className="text-center text-3xl tracking-[0.5em] font-mono w-48 px-3 py-4 rounded-2xl border-2 border-stone-300 bg-white mb-4" />
+          <button onClick={tryLogin} disabled={pinInput.length !== 4}
+            className={`w-48 py-3 rounded-2xl font-bold text-white ${pinInput.length === 4 ? "" : "opacity-40"}`} style={{ background: "#22402F" }}>
+            Intră
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- CONȚINUT ----------
+  const cartCount = Object.values(cart).filter((q) => q > 0).length;
+  const pendingGroups = groupItems("in_aprobare", true);
+  const allPendingGroups = groupItems("in_aprobare");
+  const readyGroups = groupItems("de_trimis");
+
+  // istoric grupat pe comenzi (orderRef)
+  const sentByOrder = {};
+  items.filter((it) => it.status === "trimis").forEach((it) => {
+    const ref = it.orderRef || `legacy-${it.id}`;
+    if (!sentByOrder[ref]) sentByOrder[ref] = [];
+    sentByOrder[ref].push(it);
+  });
+  const sentOrders = Object.entries(sentByOrder)
+    .filter(([ref, list]) => {
+      const p0 = products.find((x) => x.id === list[0].productId);
+      if (histSup !== "toti" && p0?.sup !== histSup) return false;
+      if (histDay && fmtDay(list[0].sentTs) !== fmtDay(new Date(histDay + "T12:00").getTime())) return false;
+      if (histSearch) {
+        const q = histSearch.toLowerCase();
+        const hit = list.some((it) => products.find((x) => x.id === it.productId)?.name.toLowerCase().includes(q));
+        if (!hit) return false;
+      }
+      if (!isApprover) {
+        const mine = list.some((it) => it.userId === me.id || me.locs.includes(it.loc));
+        if (!mine) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => b[1][0].sentTs - a[1][0].sentTs);
+
+  const proposalsCount = isAdmin ? (products.filter((p) => p.pending).length + locations.filter((l) => l.pending).length + users.filter((u) => u.pending).length) : 0;
+
+  const tabs = [
+    { id: "necesar", label: "Necesar" },
+    { id: "comenzi", label: `De trimis${readyGroups.length ? ` (${readyGroups.length})` : ""}` },
+    ...(isApprover ? [{ id: "aprobare", label: `Aprobare${pendingGroups.length ? ` (${pendingGroups.length})` : ""}` }] : []),
+    { id: "istoric", label: "Istoric" },
+    ...(isApprover || me.canAddUsers ? [{ id: "admin", label: isAdmin ? `Admin${proposalsCount ? ` (${proposalsCount})` : ""}` : "Gestiune" }] : []),
+  ];
+
+  const approverOptions = users.filter((u) => !u.pending && (u.role === "aprobator" || u.role === "admin"));
+  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locații", "furnizori"] : isApprover ? ["utilizatori", "nomenclator", "locații"] : ["utilizatori"];
+
+  return (
+    <div className="min-h-screen pb-24" style={{ background: "#EFF1EC", fontFamily: "ui-sans-serif, system-ui" }}>
+      {/* HEADER */}
+      <div className="px-4 pt-5 pb-3 sticky top-0 z-20" style={{ background: "#22402F" }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-emerald-200 text-[10px] font-mono tracking-[0.25em] uppercase">Turtha · Necesar</div>
+            <div className="text-white font-bold flex items-center gap-2 mt-0.5 flex-wrap">
+              {me.name}
+              {me.depts.length > 1 ? (
+                <select value={activeDept} onChange={(e) => setActiveDept(e.target.value)}
+                  className="text-[11px] font-semibold bg-stone-800 text-stone-100 rounded-full px-2 py-0.5 border-0">
+                  {me.depts.map((d) => <option key={d} value={d}>{deptOf(d).name}</option>)}
+                </select>
+              ) : (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${deptOf(activeDept).color}`}>{deptOf(activeDept).name}</span>
+              )}
+              {me.locs.length > 1 ? (
+                <select value={activeLoc} onChange={(e) => setActiveLoc(e.target.value)}
+                  className="text-[11px] font-mono font-bold bg-stone-800 text-stone-100 rounded px-1.5 py-0.5 border-0">
+                  {me.locs.map((l) => <option key={l} value={l}>{l} — {locName(l)}</option>)}
+                </select>
+              ) : (
+                <Badge loc={me.locs[0]} />
+              )}
+            </div>
+          </div>
+          <button onClick={logout} className="text-emerald-200 text-xs underline">ieși</button>
+        </div>
+        <div className="flex gap-1.5 mt-3 overflow-x-auto -mx-1 px-1">
+          {tabs.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === t.id ? "bg-white text-stone-900" : "bg-white/15 text-emerald-50"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4">
+        {/* NECESAR */}
+        {tab === "necesar" && (
+          <div>
+            <div className="flex gap-2 mb-2">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Caută produs..."
+                className="flex-1 px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-sm min-w-0" />
+              <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
+                title="Data livrării (opțional)"
+                className="px-2 py-2.5 rounded-xl border border-stone-300 bg-white text-xs text-stone-600" />
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-1">
+              {cats.map((c) => (
+                <button key={c} onClick={() => setCatFilter(c)}
+                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${catFilter === c ? "bg-stone-900 text-white" : "bg-white border border-stone-300 text-stone-600"}`}>{c}</button>
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              {visibleProducts.map((p) => {
+                const sup = suppliers.find((s) => s.id === p.sup);
+                const q = cart[p.id] || 0;
+                const already = openQty(p.id);
+                const step = p.stepQty || 1;
+                const handleInc = () => setCart((c) => {
+                  const cur = c[p.id] || 0;
+                  if (cur === 0) return { ...c, [p.id]: p.minQty || step };
+                  return { ...c, [p.id]: cur + step };
+                });
+                const handleDec = () => setCart((c) => {
+                  const cur = c[p.id] || 0;
+                  return { ...c, [p.id]: Math.max(0, cur - step) };
+                });
+                const handleInput = (val) => {
+                  const n = Math.max(0, Number(val) || 0);
+                  if (n === 0) { setCart((c) => ({ ...c, [p.id]: 0 })); return; }
+                  const snapped = validQty(n, p);
+                  if (step > 1 && n !== snapped) showToast(`se comandă doar la multiplu de ${step} ${p.um}`);
+                  setCart((c) => ({ ...c, [p.id]: snapped }));
+                };
+                return (
+                  <div key={p.id} className={`bg-white rounded-xl border px-3 py-2.5 flex items-center justify-between ${q > 0 ? "border-emerald-600 ring-1 ring-emerald-600" : "border-stone-200"}`}>
+                    <div className="min-w-0 pr-2">
+                      <div className="text-sm font-medium text-stone-900 truncate">{p.name}</div>
+                      <div className="text-xs text-stone-500">{sup?.name} · {p.cat}</div>
+                      {p.packLabel && <div className="text-[11px] text-stone-400">se comandă la: {p.packLabel}</div>}
+                      {!p.packLabel && step > 1 && <div className="text-[11px] text-stone-400">multiplu de {step} {p.um}</div>}
+                      {already > 0 && (
+                        <div className="text-[11px] text-amber-700 font-medium">deja în comandă: {already} {p.um}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={handleDec}
+                        className="w-8 h-8 rounded-lg bg-stone-100 font-bold text-stone-700">−</button>
+                      <div className="w-14 text-center">
+                        <input type="number" min="0" value={q || ""} placeholder="0"
+                          onChange={(e) => handleInput(e.target.value)}
+                          className="w-12 text-center font-mono text-sm border border-stone-200 rounded py-1" />
+                        <div className="text-[10px] text-stone-400">{p.um}</div>
+                      </div>
+                      <button onClick={handleInc}
+                        className="w-8 h-8 rounded-lg bg-stone-900 text-white font-bold">+</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {visibleProducts.length === 0 && (
+                <div className="text-center text-sm text-stone-500 py-10">Niciun produs pentru departamentul ales în această categorie.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DE TRIMIS */}
+        {tab === "comenzi" && (
+          <div>
+            {readyGroups.length > 1 && (
+              <button onClick={() => printDriverSheet(readyGroups)}
+                className="w-full mb-3 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-800 font-semibold text-sm">
+                🖨 Foaie șofer — toate comenzile ({readyGroups.length})
+              </button>
+            )}
+            {readyGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comandă de trimis. Adaugă produse din tabul Necesar.</div>}
+            {readyGroups.map((g) => <OrderCard key={`${g.loc}-${g.sup}`} group={g} mode="de_trimis" />)}
+            {allPendingGroups.length > 0 && !isApprover && (
+              <div className="mt-4">
+                <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">În așteptarea aprobării</div>
+                {allPendingGroups.map((g) => <OrderCard key={`p-${g.loc}-${g.sup}`} group={g} mode="vizualizare" />)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* APROBARE */}
+        {tab === "aprobare" && isApprover && (
+          <div>
+            {pendingGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nimic de aprobat de la oamenii tăi. 👌</div>}
+            {pendingGroups.map((g) => <OrderCard key={`a-${g.loc}-${g.sup}`} group={g} mode="aprobare" />)}
+          </div>
+        )}
+
+        {/* ISTORIC */}
+        {tab === "istoric" && (
+          <div>
+            <div className="flex gap-2 mb-3">
+              <select value={histSup} onChange={(e) => setHistSup(e.target.value)}
+                className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white">
+                <option value="toti">Toți furnizorii</option>
+                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <input value={histSearch} onChange={(e) => setHistSearch(e.target.value)} placeholder="Caută produs..."
+                className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-xs min-w-0" />
+              <input type="date" value={histDay} onChange={(e) => setHistDay(e.target.value)}
+                className="px-2 py-2 rounded-lg border border-stone-300 bg-white text-xs text-stone-600" />
+            </div>
+            {sentOrders.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comandă găsită.</div>}
+            {sentOrders.map(([ref, list]) => <SentOrderCard key={ref} orderRef={ref} list={list} />)}
+          </div>
+        )}
+
+        {/* ADMIN / GESTIUNE */}
+        {tab === "admin" && (isApprover || me.canAddUsers) && (
+          <div>
+            <div className="flex gap-1.5 mb-3 overflow-x-auto">
+              {adminViews.map((v) => (
+                <button key={v} onClick={() => setAdminView(v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap ${adminView === v ? "bg-stone-900 text-white" : "bg-white border border-stone-300 text-stone-600"}`}>{v}</button>
+              ))}
+            </div>
+            {!isAdmin && isApprover && <div className="text-[11px] text-stone-500 mb-3">Produsele și locațiile propuse intră în vigoare după aprobarea adminului. Utilizatorii noi intră direct dacă ai dreptul de adăugare.</div>}
+
+            {adminView === "utilizatori" && (
+              <div className="space-y-2">
+                <div className="bg-white rounded-xl border border-stone-200 p-3">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adaugă utilizator</div>
+                  <div className="flex gap-2 mb-2">
+                    <input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Nume"
+                      className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
+                    <input value={newUser.pin} onChange={(e) => setNewUser({ ...newUser, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                      placeholder="PIN" inputMode="numeric" className="w-20 px-2 py-2 rounded-lg border border-stone-300 text-sm font-mono text-center" />
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Departamente:</span>
+                    {DEPTS.map((d) => (
+                      <button key={d.id} onClick={() => setNewUser((nu) => ({ ...nu, depts: nu.depts.includes(d.id) ? nu.depts.filter((x) => x !== d.id) : [...nu.depts, d.id] }))}
+                        className={`text-xs px-2 py-1 rounded-full ${newUser.depts.includes(d.id) ? d.color + " ring-1 ring-stone-400 font-semibold" : "bg-stone-100 text-stone-400"}`}>{d.name}</button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locații:</span>
+                    {activeLocations.map((l) => (
+                      <button key={l.id} onClick={() => setNewUser((nu) => ({ ...nu, locs: nu.locs.includes(l.id) ? nu.locs.filter((x) => x !== l.id) : [...nu.locs, l.id] }))}
+                        className={`text-xs px-2 py-1 rounded-lg font-mono font-bold ${newUser.locs.includes(l.id) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>{l.id}</button>
+                    ))}
+                  </div>
+                  <select value={newUser.approverId || ""} onChange={(e) => setNewUser({ ...newUser, approverId: Number(e.target.value) || null })}
+                    className="w-full text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white mb-2">
+                    <option value="">Aprobator (responsabil)…</option>
+                    {approverOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  <button onClick={addUser} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
+                    {(isAdmin || me.canAddUsers) ? "Adaugă" : "Propune adminului"}
+                  </button>
+                </div>
+                {users.map((u) => (
+                  <div key={u.id} className={`bg-white rounded-xl border p-3 ${u.pending ? "border-amber-400" : "border-stone-200"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-stone-900 flex items-center gap-2">
+                        {u.name}
+                        {u.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">așteaptă admin</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {u.depts.map((d) => <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded-full ${deptOf(d).color}`}>{deptOf(d).name}</span>)}
+                        {u.locs.map((l) => <Badge key={l} loc={l} />)}
+                      </div>
+                    </div>
+                    {u.pending && isAdmin && (
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, pending: false } : x))}
+                          className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aprobă</button>
+                        <button onClick={() => setUsers((us) => us.filter((x) => x.id !== u.id))}
+                          className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
+                      </div>
+                    )}
+                    {isAdmin && !u.pending && (
+                      <div>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <select value={u.role} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x))}
+                            className="text-xs border border-stone-300 rounded-lg px-2 py-1.5 bg-white">
+                            <option value="angajat">Angajat</option>
+                            <option value="aprobator">Aprobator</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <select value={u.approverId || ""} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, approverId: Number(e.target.value) || null } : x))}
+                            className="text-xs border border-stone-300 rounded-lg px-2 py-1.5 bg-white">
+                            <option value="">Fără aprobator</option>
+                            {approverOptions.filter((a) => a.id !== u.id).map((a) => <option key={a.id} value={a.id}>→ {a.name}</option>)}
+                          </select>
+                          <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, direct: !x.direct } : x))}
+                            className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.direct ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
+                            {u.direct ? "✓ Trimite direct" : "Necesită aprobare"}
+                          </button>
+                          <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, canAddUsers: !x.canAddUsers } : x))}
+                            className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.canAddUsers ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
+                            {u.canAddUsers ? "✓ Adaugă utilizatori" : "Nu adaugă utilizatori"}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Dept:</span>
+                          {DEPTS.map((d) => (
+                            <button key={d.id} onClick={() => setUsers((us) => us.map((x) => {
+                              if (x.id !== u.id) return x;
+                              const has = x.depts.includes(d.id);
+                              if (has && x.depts.length === 1) return x;
+                              return { ...x, depts: has ? x.depts.filter((y) => y !== d.id) : [...x.depts, d.id] };
+                            }))}
+                              className={`text-xs px-2 py-0.5 rounded-full ${u.depts.includes(d.id) ? d.color + " ring-1 ring-stone-400 font-semibold" : "bg-stone-100 text-stone-400"}`}>{d.name}</button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locații:</span>
+                          {activeLocations.map((l) => (
+                            <button key={l.id} onClick={() => setUsers((us) => us.map((x) => {
+                              if (x.id !== u.id) return x;
+                              const has = x.locs.includes(l.id);
+                              if (has && x.locs.length === 1) return x;
+                              return { ...x, locs: has ? x.locs.filter((y) => y !== l.id) : [...x.locs, l.id] };
+                            }))}
+                              className={`text-xs px-2 py-1 rounded-lg font-mono font-bold ${u.locs.includes(l.id) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-400"}`}>{l.id}</button>
+                          ))}
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold ml-2">PIN:</span>
+                          <input value={u.pin} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, pin: e.target.value.replace(/\D/g, "").slice(0, 4) } : x))}
+                            className="w-16 px-2 py-1 rounded-lg border border-stone-300 text-xs font-mono text-center" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {adminView === "nomenclator" && isApprover && (
+              <div>
+                <div className="bg-white rounded-xl border border-stone-200 p-3 mb-3">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adaugă produs</div>
+                  <input value={newProd.name} onChange={(e) => setNewProd({ ...newProd, name: e.target.value })} placeholder="Nume produs"
+                    className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
+                  <div className="flex gap-2 mb-2">
+                    <input value={newProd.cat} onChange={(e) => setNewProd({ ...newProd, cat: e.target.value })} placeholder="Categorie"
+                      className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
+                    <input value={newProd.um} onChange={(e) => setNewProd({ ...newProd, um: e.target.value })} placeholder="UM"
+                      className="w-16 px-2 py-2 rounded-lg border border-stone-300 text-sm" />
+                    <select value={newProd.sup} onChange={(e) => setNewProd({ ...newProd, sup: e.target.value })}
+                      className="px-2 py-2 rounded-lg border border-stone-300 text-sm bg-white">
+                      {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Vizibil pentru:</span>
+                    {DEPTS.map((d) => (
+                      <button key={d.id} onClick={() => setNewProd((np) => ({ ...np, depts: np.depts.includes(d.id) ? np.depts.filter((x) => x !== d.id) : [...np.depts, d.id] }))}
+                        className={`text-xs px-2 py-1 rounded-full ${newProd.depts.includes(d.id) ? d.color + " ring-1 ring-stone-400 font-semibold" : "bg-stone-100 text-stone-400"}`}>{d.name}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mb-2">
+                    <div className="flex-1">
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Pas comandă</div>
+                      <input type="number" min="1" value={newProd.stepQty} onChange={(e) => setNewProd({ ...newProd, stepQty: e.target.value ? Number(e.target.value) : "" })}
+                        placeholder="ex: 5" className="w-full px-2 py-2 rounded-lg border border-stone-300 text-sm" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Min comandă</div>
+                      <input type="number" min="0" value={newProd.minQty} onChange={(e) => setNewProd({ ...newProd, minQty: e.target.value ? Number(e.target.value) : "" })}
+                        placeholder="ex: 5" className="w-full px-2 py-2 rounded-lg border border-stone-300 text-sm" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Ambalaj</div>
+                      <input value={newProd.packLabel} onChange={(e) => setNewProd({ ...newProd, packLabel: e.target.value })}
+                        placeholder="ex: bidon 5 l" className="w-full px-2 py-2 rounded-lg border border-stone-300 text-sm" />
+                    </div>
+                  </div>
+                  <button onClick={addProduct} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
+                    {isAdmin ? "Adaugă" : "Propune adminului"}
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {products.map((p) => (
+                    <div key={p.id} className={`bg-white rounded-lg border px-3 py-2 ${p.pending ? "border-amber-400" : "border-stone-200"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <div className="text-sm text-stone-800 flex items-center gap-1.5 flex-wrap">
+                            {p.name}
+                            {p.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">așteaptă admin</span>}
+                          </div>
+                          <div className="text-xs text-stone-500">{suppliers.find((s) => s.id === p.sup)?.name} · {p.cat} · {p.um} · {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
+                        </div>
+                        {isAdmin && !p.pending && (
+                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">șterge</button>
+                        )}
+                      </div>
+                      {p.pending && isAdmin && (
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => setProducts((ps) => ps.map((x) => x.id === p.id ? { ...x, pending: false } : x))}
+                            className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aprobă</button>
+                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))}
+                            className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {adminView === "locații" && isApprover && (
+              <div>
+                <div className="bg-white rounded-xl border border-stone-200 p-3 mb-3">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adaugă locație / zonă</div>
+                  <div className="flex gap-2 mb-2">
+                    <input value={newLoc.id} onChange={(e) => setNewLoc({ ...newLoc, id: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) })}
+                      placeholder="Cod" className="w-20 px-2 py-2 rounded-lg border border-stone-300 text-sm font-mono" />
+                    <input value={newLoc.name} onChange={(e) => setNewLoc({ ...newLoc, name: e.target.value })}
+                      placeholder="Nume (ex. Producție Patiserie)" className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
+                  </div>
+                  <button onClick={addLocation} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
+                    {isAdmin ? "Adaugă" : "Propune adminului"}
+                  </button>
+                  <div className="text-[11px] text-stone-400 mt-2">Poate fi și o zonă internă sau un client B2B: Producție Patiserie, Cafenea X etc.</div>
+                </div>
+                <div className="space-y-1">
+                  {locations.map((l) => {
+                    const inUse = users.some((u) => u.locs.includes(l.id));
+                    return (
+                      <div key={l.id} className={`bg-white rounded-lg border px-3 py-2.5 ${l.pending ? "border-amber-400" : "border-stone-200"}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge loc={l.id} />
+                            <span className="text-sm text-stone-800">{l.name}</span>
+                            {l.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">așteaptă admin</span>}
+                          </div>
+                          {isAdmin && !l.pending && (inUse ? (
+                            <span className="text-[11px] text-stone-400">are utilizatori — mută-i întâi</span>
+                          ) : (
+                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">șterge</button>
+                          ))}
+                        </div>
+                        {l.pending && isAdmin && (
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => setLocations((ls) => ls.map((x) => x.id === l.id ? { ...x, pending: false } : x))}
+                              className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aprobă</button>
+                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))}
+                              className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {adminView === "furnizori" && isAdmin && (
+              <div className="space-y-3">
+                {suppliers.map((s) => (
+                  <div key={s.id} className="bg-white rounded-xl border border-stone-200 p-3">
+                    <div className="font-semibold text-stone-900 mb-1 flex items-center gap-2">
+                      {s.name}
+                      <button onClick={() => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, pickup: !x.pickup } : x))}
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.pickup ? "bg-blue-100 text-blue-800" : "bg-stone-100 text-stone-400"}`}>
+                        {s.pickup ? "🚚 ridicare șofer" : "livrare furnizor"}
+                      </button>
+                    </div>
+                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Telefon WhatsApp</label>
+                    <input value={s.phone} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, phone: e.target.value } : x))}
+                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono mb-2" />
+                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Note (zile comandă/livrare)</label>
+                    <input value={s.days} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, days: e.target.value } : x))}
+                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
+                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Mesaj per locație (antet comandă)</label>
+                    {activeLocations.map((l) => (
+                      <div key={l.id} className="flex items-center gap-2 mt-1.5">
+                        <Badge loc={l.id} />
+                        <input value={(s.templates && s.templates[l.id]) || ""}
+                          onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, templates: { ...x.templates, [l.id]: e.target.value } } : x))}
+                          className="flex-1 px-2 py-1.5 rounded-lg border border-stone-300 text-xs min-w-0" />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* BUTON TRIMITE NECESAR */}
+      {tab === "necesar" && cartCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 z-30" style={{ background: "linear-gradient(transparent, #EFF1EC 30%)" }}>
+          <button onClick={submitCart} className="w-full py-3.5 rounded-xl text-white font-bold shadow-lg" style={{ background: "#22402F" }}>
+            {me.direct ? `Adaugă la comenzi (${cartCount} produse)` : `Trimite spre aprobare (${cartCount} produse)`}
+          </button>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && (
+        <div className="fixed bottom-20 left-4 right-4 z-40 bg-stone-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg text-center">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
