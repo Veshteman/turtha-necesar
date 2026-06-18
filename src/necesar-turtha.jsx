@@ -1,120 +1,119 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  "https://ucqmdvymreglnlmeitci.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjcW1kdnltcmVnbG5sbWVpdGNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDkwNDAsImV4cCI6MjA5NzM4NTA0MH0.VosZcBveMV1lXGzpe5F9R7G3LgJ_reZqlbmd2_f1Inc"
-);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ---------- DATE DE BAZÄ ----------
+// ---------- DATE DE BAZA ----------
 const DEFAULT_LOCATIONS = [
-  { id: "BAL", name: "BÄlcescu" },
-  { id: "SOM", name: "SomeÈului" },
-  { id: "CIN", name: "CisnÄdie Cindrelul" },
-  { id: "PRO", name: "CisnÄdie ProducÈie" },
+  { id: "BAL", name: "Balcescu" },
+  { id: "SOM", name: "Somesului" },
+  { id: "CIN", name: "Cisnadie Cindrelul" },
+  { id: "PRO", name: "Cisnadie Productie" },
 ];
 const DEPTS = [
-  { id: "buc", name: "BucÄtÄrie", color: "bg-amber-100 text-amber-800" },
+  { id: "buc", name: "Bucatarie", color: "bg-amber-100 text-amber-800" },
   { id: "bar", name: "Bar", color: "bg-sky-100 text-sky-800" },
-  { id: "cof", name: "CofetÄrie", color: "bg-pink-100 text-pink-800" },
-  { id: "pro", name: "ProducÈie", color: "bg-violet-100 text-violet-800" },
+  { id: "cof", name: "Cofetarie", color: "bg-pink-100 text-pink-800" },
+  { id: "pro", name: "Productie", color: "bg-violet-100 text-violet-800" },
   { id: "b2b", name: "Client B2B", color: "bg-teal-100 text-teal-800" },
 ];
 const ALLD = ["buc", "bar", "cof", "pro"];
 
 const DEMO_USERS = [
-  { id: 1, name: "IonuÈ", pin: "1111", role: "admin", locs: ["SOM", "BAL", "CIN", "PRO"], depts: ["buc", "bar", "cof", "pro"], direct: true, approverId: null, canAddUsers: true },
+  { id: 1, name: "Ionut", pin: "1111", role: "admin", locs: ["SOM", "BAL", "CIN", "PRO"], depts: ["buc", "bar", "cof", "pro"], direct: true, approverId: null, canAddUsers: true },
   { id: 2, name: "Mirabela", pin: "2222", role: "aprobator", locs: ["SOM", "BAL"], depts: ["buc", "bar", "cof"], direct: true, approverId: null, canAddUsers: true },
   { id: 3, name: "Radu", pin: "3333", role: "angajat", locs: ["BAL", "SOM", "CIN"], depts: ["bar"], direct: true, approverId: 2, canAddUsers: true },
-  { id: 4, name: "LuminiÈa", pin: "4444", role: "angajat", locs: ["SOM"], depts: ["cof"], direct: true, approverId: 2, canAddUsers: true },
+  { id: 4, name: "Luminita", pin: "4444", role: "angajat", locs: ["SOM"], depts: ["cof"], direct: true, approverId: 2, canAddUsers: true },
   { id: 5, name: "Daniel", pin: "5555", role: "angajat", locs: ["SOM"], depts: ["buc"], direct: false, approverId: 2, canAddUsers: false },
   { id: 6, name: "Gabi", pin: "6666", role: "angajat", locs: ["BAL"], depts: ["buc"], direct: false, approverId: 2, canAddUsers: false },
 ];
 
 const DEMO_SUPPLIERS = [
-  { id: "metro", name: "Metro", phone: "40722000001", days: "Comenzi: zilnic pÃ¢nÄ la 14:00", pickup: true,
-    templates: { BAL: "ComandÄ Turtha â BÄlcescu:", SOM: "ComandÄ Turtha â SomeÈului:", CIN: "ComandÄ Turtha â CisnÄdie Cindrelul:", PRO: "ComandÄ Turtha â ProducÈie CisnÄdie:" } },
-  { id: "selgros", name: "Selgros", phone: "40722000002", days: "Ridicare de Èofer", pickup: true,
-    templates: { BAL: "De luat de la Selgros pentru BÄlcescu:", SOM: "De luat de la Selgros pentru SomeÈului:", CIN: "De luat de la Selgros pentru CisnÄdie:", PRO: "De luat de la Selgros pentru ProducÈie:" } },
-  { id: "kaufland", name: "Kaufland", phone: "40722000003", days: "Ridicare de Èofer", pickup: true,
-    templates: { BAL: "De luat de la Kaufland pentru BÄlcescu:", SOM: "De luat de la Kaufland pentru SomeÈului:", CIN: "De luat de la Kaufland pentru CisnÄdie:", PRO: "De luat de la Kaufland pentru ProducÈie:" } },
-  { id: "lidl", name: "Lidl", phone: "40722000004", days: "Ridicare de Èofer", pickup: true,
-    templates: { BAL: "De luat de la Lidl pentru BÄlcescu:", SOM: "De luat de la Lidl pentru SomeÈului:", CIN: "De luat de la Lidl pentru CisnÄdie:", PRO: "De luat de la Lidl pentru ProducÈie:" } },
-  { id: "miramax", name: "Miramax", phone: "40722000005", days: "Zile de comandÄ: miercuri Èi duminicÄ", pickup: false,
-    templates: { BAL: "ComandÄ Turtha BÄlcescu (livrare separatÄ de SomeÈului!):", SOM: "ComandÄ Turtha SomeÈului:", CIN: "ComandÄ Turtha CisnÄdie:", PRO: "ComandÄ ProducÈie CisnÄdie:" } },
-  { id: "albota", name: "Albota", phone: "40722000006", days: "Livrare localÄ â pÄstrÄvÄrie/brÃ¢nzeturi", pickup: false,
-    templates: { BAL: "BunÄ ziua! ComandÄ Turtha BÄlcescu:", SOM: "BunÄ ziua! ComandÄ Turtha SomeÈului:", CIN: "BunÄ ziua! ComandÄ Turtha CisnÄdie:", PRO: "BunÄ ziua! ComandÄ ProducÈie CisnÄdie:" } },
-  { id: "hala", name: "Hala", phone: "40722000007", days: "PiaÈÄ/HalÄ â ridicare de Èofer", pickup: true,
-    templates: { BAL: "De luat din HalÄ pentru BÄlcescu:", SOM: "De luat din HalÄ pentru SomeÈului:", CIN: "De luat din HalÄ pentru CisnÄdie:", PRO: "De luat din HalÄ pentru ProducÈie:" } },
-  { id: "centrala", name: "Centrala (producÈie internÄ)", phone: "40722000008", days: "ProducÈie internÄ CisnÄdie", pickup: true,
-    templates: { BAL: "Necesar de la ProducÈie â BÄlcescu:", SOM: "Necesar de la ProducÈie â SomeÈului:", CIN: "Necesar de la ProducÈie â CisnÄdie Cindrelul:", PRO: "Necesar intern ProducÈie:" } },
+  { id: "metro", name: "Metro", phone: "40722000001", days: "Comenzi: zilnic pana la 14:00", pickup: true,
+    templates: { BAL: "Comanda Turtha - Balcescu:", SOM: "Comanda Turtha - Somesului:", CIN: "Comanda Turtha - Cisnadie Cindrelul:", PRO: "Comanda Turtha - Productie Cisnadie:" } },
+  { id: "selgros", name: "Selgros", phone: "40722000002", days: "Ridicare de sofer", pickup: true,
+    templates: { BAL: "De luat de la Selgros pentru Balcescu:", SOM: "De luat de la Selgros pentru Somesului:", CIN: "De luat de la Selgros pentru Cisnadie:", PRO: "De luat de la Selgros pentru Productie:" } },
+  { id: "kaufland", name: "Kaufland", phone: "40722000003", days: "Ridicare de sofer", pickup: true,
+    templates: { BAL: "De luat de la Kaufland pentru Balcescu:", SOM: "De luat de la Kaufland pentru Somesului:", CIN: "De luat de la Kaufland pentru Cisnadie:", PRO: "De luat de la Kaufland pentru Productie:" } },
+  { id: "lidl", name: "Lidl", phone: "40722000004", days: "Ridicare de sofer", pickup: true,
+    templates: { BAL: "De luat de la Lidl pentru Balcescu:", SOM: "De luat de la Lidl pentru Somesului:", CIN: "De luat de la Lidl pentru Cisnadie:", PRO: "De luat de la Lidl pentru Productie:" } },
+  { id: "miramax", name: "Miramax", phone: "40722000005", days: "Zile de comanda: miercuri si duminica", pickup: false,
+    templates: { BAL: "Comanda Turtha Balcescu (livrare separata de Somesului!):", SOM: "Comanda Turtha Somesului:", CIN: "Comanda Turtha Cisnadie:", PRO: "Comanda Productie Cisnadie:" } },
+  { id: "albota", name: "Albota", phone: "40722000006", days: "Livrare locala - pastravarie/branzeturi", pickup: false,
+    templates: { BAL: "Buna ziua! Comanda Turtha Balcescu:", SOM: "Buna ziua! Comanda Turtha Somesului:", CIN: "Buna ziua! Comanda Turtha Cisnadie:", PRO: "Buna ziua! Comanda Productie Cisnadie:" } },
+  { id: "hala", name: "Hala", phone: "40722000007", days: "Piata/Hala - ridicare de sofer", pickup: true,
+    templates: { BAL: "De luat din Hala pentru Balcescu:", SOM: "De luat din Hala pentru Somesului:", CIN: "De luat din Hala pentru Cisnadie:", PRO: "De luat din Hala pentru Productie:" } },
+  { id: "centrala", name: "Centrala (productie interna)", phone: "40722000008", days: "Productie interna Cisnadie", pickup: true,
+    templates: { BAL: "Necesar de la Productie -> Balcescu:", SOM: "Necesar de la Productie -> Somesului:", CIN: "Necesar de la Productie -> Cisnadie Cindrelul:", PRO: "Necesar intern Productie:" } },
 ];
 
 const DEMO_PRODUCTS = [
   { id: 1, name: "Piept pui", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
   { id: 2, name: "Pulpe pui", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
   { id: 3, name: "Pulpe pui dezosate cu piele", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 4, name: "CeafÄ porc", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 5, name: "VrÄbioarÄ", cat: "Carne", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 4, name: "Ceafa porc", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 5, name: "Vrabioara", cat: "Carne", um: "buc", sup: "metro", depts: ["buc"] },
   { id: 6, name: "Bacon", cat: "Carne", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 7, name: "CÃ¢rnaÈi", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 8, name: "Somon proaspÄt", cat: "PeÈte", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 9, name: "Feta", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 10, name: "Telemea vacÄ", cat: "Lactate & BrÃ¢nzeturi", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 11, name: "Brie", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 12, name: "Gorgonzola", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 13, name: "Parmezan calup", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 14, name: "SmÃ¢ntÃ¢nÄ", cat: "Lactate & BrÃ¢nzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
-  { id: 15, name: "Iaurt", cat: "Lactate & BrÃ¢nzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
-  { id: 16, name: "OuÄ", cat: "Lactate & BrÃ¢nzeturi", um: "cofraj", sup: "metro", depts: ["buc", "cof", "pro"] },
-  { id: 17, name: "CeapÄ chives", cat: "Legume & Fructe", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 7, name: "Carnati", cat: "Carne", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 8, name: "Somon proaspat", cat: "Peste", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 9, name: "Feta", cat: "Lactate & Branzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 10, name: "Telemea vaca", cat: "Lactate & Branzeturi", um: "kg", sup: "metro", depts: ["buc"] },
+  { id: 11, name: "Brie", cat: "Lactate & Branzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 12, name: "Gorgonzola", cat: "Lactate & Branzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 13, name: "Parmezan calup", cat: "Lactate & Branzeturi", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 14, name: "Smantana", cat: "Lactate & Branzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
+  { id: 15, name: "Iaurt", cat: "Lactate & Branzeturi", um: "kg", sup: "metro", depts: ["buc", "cof"] },
+  { id: 16, name: "Oua", cat: "Lactate & Branzeturi", um: "cofraj", sup: "metro", depts: ["buc", "cof", "pro"] },
+  { id: 17, name: "Ceapa chives", cat: "Legume & Fructe", um: "buc", sup: "metro", depts: ["buc"] },
   { id: 18, name: "Microplante", cat: "Legume & Fructe", um: "buc", sup: "metro", depts: ["buc", "bar"] },
   { id: 19, name: "Cartofi mov", cat: "Legume & Fructe", um: "kg", sup: "metro", depts: ["buc"] },
-  { id: 20, name: "Mango proaspÄt", cat: "Legume & Fructe", um: "kg", sup: "metro", depts: ["buc", "bar", "cof"] },
-  { id: 21, name: "Mango congelat", cat: "Congelate", um: "pungÄ", sup: "metro", depts: ["buc", "bar", "cof"] },
-  { id: 22, name: "CreveÈi congelaÈi", cat: "Congelate", um: "pungÄ", sup: "metro", depts: ["buc"] },
-  { id: 23, name: "NÄut conservÄ", cat: "BÄcÄnie", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 24, name: "Fasole Ã®n sos tomat", cat: "BÄcÄnie", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 25, name: "Nachos", cat: "BÄcÄnie", um: "buc", sup: "metro", depts: ["buc"] },
-  { id: 26, name: "Tortilla chips", cat: "BÄcÄnie", um: "pungÄ", sup: "metro", depts: ["buc"] },
-  { id: 27, name: "MurÄturi asortate", cat: "BÄcÄnie", um: "bidon", sup: "metro", depts: ["buc"] },
-  { id: 28, name: "Ulei floarea-soarelui", cat: "BÄcÄnie", um: "l", sup: "metro", depts: ["buc", "pro"], stepQty: 5, packLabel: "bidon 5 l" },
-  { id: 29, name: "Ulei mÄsline", cat: "BÄcÄnie", um: "l", sup: "metro", depts: ["buc"] },
-  { id: 30, name: "MuÈtar Dijon", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
-  { id: 31, name: "MuÈtar boabe", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
+  { id: 20, name: "Mango proaspat", cat: "Legume & Fructe", um: "kg", sup: "metro", depts: ["buc", "bar", "cof"] },
+  { id: 21, name: "Mango congelat", cat: "Congelate", um: "punga", sup: "metro", depts: ["buc", "bar", "cof"] },
+  { id: 22, name: "Creveti congelati", cat: "Congelate", um: "punga", sup: "metro", depts: ["buc"] },
+  { id: 23, name: "Naut conserva", cat: "Bacanie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 24, name: "Fasole in sos tomat", cat: "Bacanie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 25, name: "Nachos", cat: "Bacanie", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 26, name: "Tortilla chips", cat: "Bacanie", um: "punga", sup: "metro", depts: ["buc"] },
+  { id: 27, name: "Muraturi asortate", cat: "Bacanie", um: "bidon", sup: "metro", depts: ["buc"] },
+  { id: 28, name: "Ulei floarea-soarelui", cat: "Bacanie", um: "l", sup: "metro", depts: ["buc", "pro"], stepQty: 5, packLabel: "bidon 5 l" },
+  { id: 29, name: "Ulei masline", cat: "Bacanie", um: "l", sup: "metro", depts: ["buc"] },
+  { id: 30, name: "Mustar Dijon", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
+  { id: 31, name: "Mustar boabe", cat: "Sosuri & Condimente", um: "borcan", sup: "metro", depts: ["buc"] },
   { id: 32, name: "Sos cheddar", cat: "Sosuri & Condimente", um: "buc", sup: "metro", depts: ["buc"] },
   { id: 33, name: "Sos BBQ", cat: "Sosuri & Condimente", um: "bidon", sup: "metro", depts: ["buc"] },
   { id: 34, name: "Cardamom praf", cat: "Sosuri & Condimente", um: "buc", sup: "metro", depts: ["buc", "cof"] },
-  { id: 35, name: "Vin roÈu gÄtit", cat: "BÄuturi", um: "cutie", sup: "metro", depts: ["buc"] },
-  { id: 36, name: "Folie aluminiu", cat: "CurÄÈenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
-  { id: 37, name: "SoluÈie spÄlat vase", cat: "CurÄÈenie & Consumabile", um: "bidon", sup: "metro", depts: ALLD },
-  { id: 38, name: "Sano Forte", cat: "CurÄÈenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
-  { id: 39, name: "Suport tacÃ¢muri industrial", cat: "CurÄÈenie & Consumabile", um: "buc", sup: "metro", depts: ["buc"] },
+  { id: 35, name: "Vin rosu gatit", cat: "Bauturi", um: "cutie", sup: "metro", depts: ["buc"] },
+  { id: 36, name: "Folie aluminiu", cat: "Curatenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
+  { id: 37, name: "Solutie spalat vase", cat: "Curatenie & Consumabile", um: "bidon", sup: "metro", depts: ALLD },
+  { id: 38, name: "Sano Forte", cat: "Curatenie & Consumabile", um: "buc", sup: "metro", depts: ALLD },
+  { id: 39, name: "Suport tacamuri industrial", cat: "Curatenie & Consumabile", um: "buc", sup: "metro", depts: ["buc"] },
   { id: 40, name: "Cartofi dulci", cat: "Legume & Fructe", um: "kg", sup: "miramax", depts: ["buc"] },
-  { id: 41, name: "Cartofi dulci pt. prÄjit", cat: "Congelate", um: "pungÄ", sup: "miramax", depts: ["buc"] },
-  { id: 42, name: "Parmezan", cat: "Lactate & BrÃ¢nzeturi", um: "kg", sup: "miramax", depts: ["buc"] },
-  { id: 43, name: "Tahini", cat: "BÄcÄnie", um: "buc", sup: "miramax", depts: ["buc"] },
-  { id: 44, name: "Fasole brunÄ", cat: "BÄcÄnie", um: "buc", sup: "miramax", depts: ["buc"] },
-  { id: 45, name: "Somon afumat", cat: "PeÈte", um: "buc", sup: "miramax", depts: ["buc"] },
-  { id: 46, name: "Panko", cat: "BÄcÄnie", um: "pungÄ", sup: "miramax", depts: ["buc"] },
-  { id: 47, name: "CeapÄ crocantÄ", cat: "BÄcÄnie", um: "kg", sup: "miramax", depts: ["buc"] },
-  { id: 48, name: "Piper mÄcinat", cat: "Sosuri & Condimente", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 41, name: "Cartofi dulci pt. prajit", cat: "Congelate", um: "punga", sup: "miramax", depts: ["buc"] },
+  { id: 42, name: "Parmezan", cat: "Lactate & Branzeturi", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 43, name: "Tahini", cat: "Bacanie", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 44, name: "Fasole bruna", cat: "Bacanie", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 45, name: "Somon afumat", cat: "Peste", um: "buc", sup: "miramax", depts: ["buc"] },
+  { id: 46, name: "Panko", cat: "Bacanie", um: "punga", sup: "miramax", depts: ["buc"] },
+  { id: 47, name: "Ceapa crocanta", cat: "Bacanie", um: "kg", sup: "miramax", depts: ["buc"] },
+  { id: 48, name: "Piper macinat", cat: "Sosuri & Condimente", um: "kg", sup: "miramax", depts: ["buc"] },
   { id: 49, name: "Avocado", cat: "Legume & Fructe", um: "buc", sup: "kaufland", depts: ["buc", "bar"] },
   { id: 50, name: "Rodie", cat: "Legume & Fructe", um: "buc", sup: "kaufland", depts: ["buc", "bar"] },
-  { id: 51, name: "PÄstrÄv afumat", cat: "PeÈte", um: "buc", sup: "albota", depts: ["buc"] },
-  { id: 52, name: "BrÃ¢nzÄ cu chilli", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "albota", depts: ["buc"] },
-  { id: 53, name: "BrÃ¢nzÄ cu trufe", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "albota", depts: ["buc"] },
-  { id: 54, name: "BrÃ¢nzÄ cu fistic", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "albota", depts: ["buc"] },
-  { id: 55, name: "BrÃ¢nzÄ feta Albota", cat: "Lactate & BrÃ¢nzeturi", um: "buc", sup: "albota", depts: ["buc"] },
-  { id: 56, name: "CÄrbuni", cat: "CurÄÈenie & Consumabile", um: "buc", sup: "hala", depts: ["buc"] },
-  { id: 57, name: "Burger (carne)", cat: "ProducÈie internÄ", um: "buc", sup: "centrala", depts: ["buc"] },
-  { id: 58, name: "DulceaÈÄ de ardei", cat: "ProducÈie internÄ", um: "kg", sup: "centrala", depts: ["buc"] },
-  { id: 59, name: "Granola", cat: "ProducÈie internÄ", um: "kg", sup: "centrala", depts: ["buc", "cof"] },
-  { id: 60, name: "VitÄ quesadilla", cat: "ProducÈie internÄ", um: "kg", sup: "centrala", depts: ["buc"] },
-  { id: 61, name: "Pulled pork", cat: "ProducÈie internÄ", um: "kg", sup: "centrala", depts: ["buc"] },
-  { id: 62, name: "Sirop mango", cat: "ProducÈie internÄ", um: "pungÄ", sup: "centrala", depts: ["bar", "b2b"] },
-  { id: 63, name: "Croissant unt", cat: "ProducÈie internÄ", um: "buc", sup: "centrala", depts: ["b2b", "cof"] },
-  { id: 64, name: "CiocolatÄ neagrÄ", cat: "BÄcÄnie", um: "kg", sup: "metro", depts: ["buc", "cof"], stepQty: 5, minQty: 5, packLabel: "gÄleatÄ 5 kg" },
+  { id: 51, name: "Pastrav afumat", cat: "Peste", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 52, name: "Branza cu chilli", cat: "Lactate & Branzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 53, name: "Branza cu trufe", cat: "Lactate & Branzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 54, name: "Branza cu fistic", cat: "Lactate & Branzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 55, name: "Branza feta Albota", cat: "Lactate & Branzeturi", um: "buc", sup: "albota", depts: ["buc"] },
+  { id: 56, name: "Carbuni", cat: "Curatenie & Consumabile", um: "buc", sup: "hala", depts: ["buc"] },
+  { id: 57, name: "Burger (carne)", cat: "Productie interna", um: "buc", sup: "centrala", depts: ["buc"] },
+  { id: 58, name: "Dulceata de ardei", cat: "Productie interna", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 59, name: "Granola", cat: "Productie interna", um: "kg", sup: "centrala", depts: ["buc", "cof"] },
+  { id: 60, name: "Vita quesadilla", cat: "Productie interna", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 61, name: "Pulled pork", cat: "Productie interna", um: "kg", sup: "centrala", depts: ["buc"] },
+  { id: 62, name: "Sirop mango", cat: "Productie interna", um: "punga", sup: "centrala", depts: ["bar", "b2b"] },
+  { id: 63, name: "Croissant unt", cat: "Productie interna", um: "buc", sup: "centrala", depts: ["b2b", "cof"] },
+  { id: 64, name: "Ciocolata neagra", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc", "cof"], stepQty: 5, minQty: 5, packLabel: "galeata 5 kg" },
 ];
 
 const STORE_KEY = "turtha-necesar-v7";
@@ -124,7 +123,7 @@ const deptOf = (id) => DEPTS.find((d) => d.id === id) || DEPTS[0];
 const fmtDate = (ts) => new Date(ts).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const fmtDay = (ts) => new Date(ts).toLocaleDateString("ro-RO");
 
-// Cantitate validÄ respectÃ¢nd stepQty Èi minQty
+// Cantitate valida respectand stepQty si minQty
 const validQty = (qty, p) => {
   if (!p || qty <= 0) return 0;
   const step = p.stepQty || 1;
@@ -156,7 +155,7 @@ export default function NecesarTurtha() {
   const [expanded, setExpanded] = useState({});
   const [toast, setToast] = useState(null);
   const [adminView, setAdminView] = useState("utilizatori");
-  const [newProd, setNewProd] = useState({ name: "", cat: "BÄcÄnie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
+  const [newProd, setNewProd] = useState({ name: "", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
   const [newLoc, setNewLoc] = useState({ id: "", name: "" });
   const [newUser, setNewUser] = useState({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
   const [histSup, setHistSup] = useState("toti");
@@ -166,7 +165,7 @@ export default function NecesarTurtha() {
   const locName = (id) => locations.find((l) => l.id === id)?.name || id;
   const activeLocations = locations.filter((l) => !l.pending);
 
-  // ---------- PERSISTENÈÄ ----------
+  // ---------- PERSISTENTA ----------
   useEffect(() => {
     (async () => {
       try {
@@ -185,7 +184,7 @@ export default function NecesarTurtha() {
           if (d.receptions) setReceptions(d.receptions);
           if (d.seq) setSeq(d.seq);
         }
-      } catch (e) { /* prima rulare â date demo */ }
+      } catch (e) { /* prima rulare - date demo */ }
       setLoaded(true);
     })();
   }, []);
@@ -199,7 +198,7 @@ export default function NecesarTurtha() {
           value: { users, products, suppliers, locations, items, receptions, seq },
           updated_at: new Date().toISOString(),
         });
-      } catch (e) { console.error("Salvare eÈuatÄ", e); }
+      } catch (e) { console.error("Salvare esuata", e); }
     })();
   }, [users, products, suppliers, locations, items, receptions, seq, loaded]);
 
@@ -235,7 +234,7 @@ export default function NecesarTurtha() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
-  // ---------- LOGIN (doar PIN, fÄrÄ listÄ de utilizatori) ----------
+  // ---------- LOGIN (doar PIN, fara lista de utilizatori) ----------
   const tryLogin = () => {
     const u = users.find((x) => !x.pending && x.pin === pinInput);
     if (u) {
@@ -252,7 +251,7 @@ export default function NecesarTurtha() {
 
   const logout = () => { setCurrentUserId(null); setActiveLoc(null); setActiveDept(null); setCart({}); };
 
-  // ---------- ACÈIUNI ----------
+  // ---------- ACTIUNI ----------
   const submitCart = () => {
     const entries = Object.entries(cart).filter(([, q]) => q > 0);
     if (!entries.length) return;
@@ -266,7 +265,7 @@ export default function NecesarTurtha() {
     setItems((prev) => [...prev, ...newItems]);
     setCart({});
     setDeliveryDate("");
-    showToast(status === "de_trimis" ? "Necesar adÄugat â gata de trimis" : "Necesar trimis spre aprobare");
+    showToast(status === "de_trimis" ? "Necesar adaugat - gata de trimis" : "Necesar trimis spre aprobare");
     setTab("comenzi");
   };
 
@@ -284,7 +283,7 @@ export default function NecesarTurtha() {
       }
       return it;
     }));
-    showToast("Aprobat â mutat la De trimis");
+    showToast("Aprobat - mutat la De trimis");
   };
 
   const updateQty = (itemId, delta) => {
@@ -300,7 +299,7 @@ export default function NecesarTurtha() {
 
   const sendGroup = (loc, supId, groupItems) => {
     const sup = suppliers.find((s) => s.id === supId);
-    const header = (sup.templates && sup.templates[loc]) || `ComandÄ Turtha ${locName(loc)}:`;
+    const header = (sup.templates && sup.templates[loc]) || `Comanda Turtha ${locName(loc)}:`;
     const byProd = {};
     groupItems.forEach((it) => {
       const p = products.find((x) => x.id === it.productId);
@@ -310,23 +309,23 @@ export default function NecesarTurtha() {
     const lines = Object.values(byProd).map((r) => {
       const packSuffix = r.packLabel && r.stepQty && r.stepQty > 1
         ? ` (${r.qty / r.stepQty} x ${r.packLabel})` : "";
-      return `â¢ ${r.name} â ${r.qty} ${r.um}${packSuffix}`;
+      return `- ${r.name} - ${r.qty} ${r.um}${packSuffix}`;
     });
     const dDate = groupItems.find((it) => it.deliveryDate)?.deliveryDate;
-    const dLine = dDate ? `\nLivrare doritÄ: ${new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}` : "";
-    const msg = `${header}\n\n${lines.join("\n")}${dLine}\n\nMulÈumim!`;
+    const dLine = dDate ? `\nLivrare dorita: ${new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}` : "";
+    const msg = `${header}\n\n${lines.join("\n")}${dLine}\n\nMultumim!`;
     const url = `https://wa.me/${sup.phone}?text=${encodeURIComponent(msg)}`;
     const orderRef = `${Date.now()}-${supId}-${loc}`;
     setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "trimis", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
     window.open(url, "_blank");
-    showToast(`ComandÄ ${sup.name} Â· ${locName(loc)} trimisÄ`);
+    showToast(`Comanda ${sup.name} - ${locName(loc)} trimisa`);
   };
 
   const setReception = (orderRef, productId, qty) => {
     setReceptions((prev) => ({ ...prev, [orderRef]: { ...(prev[orderRef] || {}), [productId]: qty } }));
   };
 
-  // ---------- FOAIE ÈOFER (printabil A4) ----------
+  // ---------- FOAIE SOFER (printabil A4) ----------
   const printDriverSheet = (groups) => {
     const w = window.open("", "_blank");
     if (!w) { showToast("Permite pop-up pentru printare"); return; }
@@ -339,12 +338,12 @@ export default function NecesarTurtha() {
         byProd[p.id].qty += it.qty;
       });
       const rows = Object.values(byProd).map((r) =>
-        `<tr><td class="chk">â</td><td>${r.name}</td><td class="qty">${r.qty} ${r.um}</td><td class="luat"></td></tr>`
+        `<tr><td class="chk">[ ]</td><td>${r.name}</td><td class="qty">${r.qty} ${r.um}</td><td class="luat"></td></tr>`
       ).join("");
-      return `<h2>${sup.name} â ${locName(g.loc)}</h2>
-        <table><tr><th class="chk">â</th><th>Produs</th><th class="qty">Cantitate</th><th class="luat">Luat / Obs.</th></tr>${rows}</table>`;
+      return `<h2>${sup.name} - ${locName(g.loc)}</h2>
+        <table><tr><th class="chk">X</th><th>Produs</th><th class="qty">Cantitate</th><th class="luat">Luat / Obs.</th></tr>${rows}</table>`;
     }).join("");
-    w.document.write(`<html><head><title>Foaie Èofer Turtha</title><style>
+    w.document.write(`<html><head><title>Foaie sofer Turtha</title><style>
       body{font-family:Arial,sans-serif;padding:24px;color:#111}
       h1{font-size:18px;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:4px}
       .sub{font-size:12px;color:#555;margin-bottom:14px}
@@ -357,8 +356,8 @@ export default function NecesarTurtha() {
       .luat{width:130px}
       @media print { body{padding:8px} }
     </style></head><body>
-      <h1>Foaie ridicare â Turtha</h1>
-      <div class="sub">GeneratÄ: ${new Date().toLocaleString("ro-RO")} Â· de ${me.name}</div>
+      <h1>Foaie ridicare - Turtha</h1>
+      <div class="sub">Generata: ${new Date().toLocaleString("ro-RO")} - de ${me.name}</div>
       ${sections}
     </body></html>`);
     w.document.close();
@@ -368,40 +367,40 @@ export default function NecesarTurtha() {
   // ---------- PROPUNERI ----------
   const addProduct = () => {
     if (!newProd.name.trim()) return;
-    if (!newProd.depts.length) { showToast("BifeazÄ cel puÈin un departament"); return; }
+    if (!newProd.depts.length) { showToast("Bifeaza cel putin un departament"); return; }
     const pending = !isAdmin;
     const prodData = { ...newProd };
     if (!prodData.stepQty) delete prodData.stepQty;
     if (!prodData.minQty) delete prodData.minQty;
     if (!prodData.packLabel) delete prodData.packLabel;
     setProducts((ps) => [...ps, { ...prodData, id: Math.max(0, ...ps.map((p) => p.id)) + 1, pending, proposedBy: me.id }]);
-    setNewProd({ name: "", cat: "BÄcÄnie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
-    showToast(pending ? "Propunere trimisÄ adminului" : "Produs adÄugat");
+    setNewProd({ name: "", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
+    showToast(pending ? "Propunere trimisa adminului" : "Produs adaugat");
   };
 
   const addLocation = () => {
     const id = newLoc.id.trim(); const name = newLoc.name.trim();
-    if (!id || !name) { showToast("CompleteazÄ codul Èi numele"); return; }
-    if (locations.some((l) => l.id === id)) { showToast("Codul existÄ deja"); return; }
+    if (!id || !name) { showToast("Completeaza codul si numele"); return; }
+    if (locations.some((l) => l.id === id)) { showToast("Codul exista deja"); return; }
     const pending = !isAdmin;
     setLocations((ls) => [...ls, { id, name, pending }]);
     setNewLoc({ id: "", name: "" });
-    showToast(pending ? "Propunere trimisÄ adminului" : "LocaÈie adÄugatÄ");
+    showToast(pending ? "Propunere trimisa adminului" : "Locatie adaugata");
   };
 
   const addUser = () => {
-    if (!newUser.name.trim()) { showToast("CompleteazÄ numele"); return; }
-    if (!/^\d{4}$/.test(newUser.pin)) { showToast("PIN-ul trebuie sÄ aibÄ 4 cifre"); return; }
-    if (users.some((u) => u.pin === newUser.pin)) { showToast("PIN-ul existÄ deja â alege altul"); return; }
-    if (!newUser.locs.length) { showToast("BifeazÄ cel puÈin o locaÈie"); return; }
-    if (!newUser.depts.length) { showToast("BifeazÄ cel puÈin un departament"); return; }
+    if (!newUser.name.trim()) { showToast("Completeaza numele"); return; }
+    if (!/^\d{4}$/.test(newUser.pin)) { showToast("PIN-ul trebuie sa aiba 4 cifre"); return; }
+    if (users.some((u) => u.pin === newUser.pin)) { showToast("PIN-ul exista deja - alege altul"); return; }
+    if (!newUser.locs.length) { showToast("Bifeaza cel putin o locatie"); return; }
+    if (!newUser.depts.length) { showToast("Bifeaza cel putin un departament"); return; }
     const pending = !(isAdmin || me.canAddUsers);
     setUsers((us) => [...us, {
       ...newUser, id: Math.max(0, ...us.map((u) => u.id)) + 1, role: "angajat", direct: false, canAddUsers: false,
       approverId: newUser.approverId || (isAdmin ? null : me.id), pending,
     }]);
     setNewUser({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
-    showToast(pending ? "Propunere trimisÄ adminului" : "Utilizator adÄugat â poate intra cu PIN-ul lui");
+    showToast(pending ? "Propunere trimisa adminului" : "Utilizator adaugat - poate intra cu PIN-ul lui");
   };
 
   // ---------- GRUPARE ----------
@@ -417,7 +416,7 @@ export default function NecesarTurtha() {
     return Object.values(map);
   };
 
-  // cantitate deja Ã®n comenzi deschise pentru produs, pe locaÈia activÄ
+  // cantitate deja in comenzi deschise pentru produs, pe locatia activa
   const openQty = (productId) => items
     .filter((it) => it.productId === productId && it.loc === activeLoc && (it.status === "in_aprobare" || it.status === "de_trimis"))
     .reduce((a, b) => a + b.qty, 0);
@@ -467,7 +466,7 @@ export default function NecesarTurtha() {
           <div>
             <div className="font-bold text-stone-900">{sup.name}</div>
             <div className="text-xs text-stone-500">{sup.days}</div>
-            {dDate && <div className="text-xs text-emerald-700 font-medium">Livrare doritÄ: {new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}</div>}
+            {dDate && <div className="text-xs text-emerald-700 font-medium">Livrare dorita: {new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}</div>}
           </div>
           <Badge loc={group.loc} />
         </div>
@@ -482,7 +481,7 @@ export default function NecesarTurtha() {
                   onClick={() => setExpanded((e) => ({ ...e, [key]: !e[key] }))}>
                   <span className="text-sm text-stone-800">{p.name}</span>
                   <span className="font-mono text-sm font-semibold text-stone-900">
-                    {total} {p.um} <span className="text-stone-400 ml-1">{expanded[key] ? "â¾" : "â¸"}</span>
+                    {total} {p.um} <span className="text-stone-400 ml-1">{expanded[key] ? "v" : ">"}</span>
                   </span>
                 </button>
                 {expanded[key] && (
@@ -495,8 +494,8 @@ export default function NecesarTurtha() {
                           const step = pp?.stepQty || 1;
                           return (
                             <div key={it.id} className="flex items-center gap-2 text-xs">
-                              <span className="text-stone-500">ajusteazÄ:</span>
-                              <button onClick={() => updateQty(it.id, -1)} className="w-6 h-6 rounded bg-stone-200 font-bold">â</button>
+                              <span className="text-stone-500">ajusteaza:</span>
+                              <button onClick={() => updateQty(it.id, -1)} className="w-6 h-6 rounded bg-stone-200 font-bold">-</button>
                               <span className="font-mono w-14 text-center">{it.qty} {pp?.um}</span>
                               <button onClick={() => updateQty(it.id, +1)} className="w-6 h-6 rounded bg-stone-200 font-bold">+</button>
                               {step > 1 && <span className="text-stone-400">pas: {step}</span>}
@@ -514,25 +513,25 @@ export default function NecesarTurtha() {
         <div className="px-4 py-3 bg-stone-50 border-t border-stone-100">
           {mode === "aprobare" && isApprover && (
             <button onClick={() => approveGroup(group.loc, group.sup)} className="w-full py-2.5 rounded-lg bg-stone-900 text-white font-semibold text-sm">
-              AprobÄ comanda
+              Aproba comanda
             </button>
           )}
           {mode === "de_trimis" && (canSendThis ? (
             <div className="flex gap-2">
               <button onClick={() => sendGroup(group.loc, group.sup, group.items)} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: "#1FAF54" }}>
-                WhatsApp â {sup.name}
+                WhatsApp catre {sup.name}
               </button>
-              <button onClick={() => printDriverSheet([group])} className="px-3 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">ð¨</button>
+              <button onClick={() => printDriverSheet([group])} className="px-3 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">Print</button>
             </div>
           ) : (
-            <div className="text-xs text-center text-stone-500">Doar un aprobator poate trimite aceastÄ comandÄ</div>
+            <div className="text-xs text-center text-stone-500">Doar un aprobator poate trimite aceasta comanda</div>
           ))}
         </div>
       </div>
     );
   };
 
-  // istoric: comenzi trimise grupate pe orderRef, cumulate pe produs, cu recepÈie
+  // istoric: comenzi trimise grupate pe orderRef, cumulate pe produs, cu receptie
   const SentOrderCard = ({ orderRef, list }) => {
     const first = list[0];
     const p0 = products.find((x) => x.id === first.productId);
@@ -547,7 +546,7 @@ export default function NecesarTurtha() {
     const rec = receptions[orderRef] || {};
     const prods = Object.values(byProd);
     const recStatus = prods.every((r) => rec[r.p.id] === r.qty) ? "complet"
-      : prods.some((r) => rec[r.p.id] != null) ? "parÈial" : null;
+      : prods.some((r) => rec[r.p.id] != null) ? "partial" : null;
     const canReceive = isApprover || me.locs.includes(first.loc);
     const key = `hist-${orderRef}`;
     return (
@@ -555,13 +554,13 @@ export default function NecesarTurtha() {
         <button className="w-full px-4 py-3 flex items-center justify-between text-left"
           onClick={() => setExpanded((e) => ({ ...e, [key]: !e[key] }))}>
           <div>
-            <div className="font-semibold text-stone-900 text-sm">{sup?.name} <span className="text-stone-400">Â·</span> {locName(first.loc)}</div>
-            <div className="text-xs text-stone-500">{fmtDate(first.sentTs)} Â· trimisÄ de {sender?.name || "?"} Â· {prods.length} produse</div>
+            <div className="font-semibold text-stone-900 text-sm">{sup?.name} <span className="text-stone-400">-</span> {locName(first.loc)}</div>
+            <div className="text-xs text-stone-500">{fmtDate(first.sentTs)} - trimisa de {sender?.name || "?"} - {prods.length} produse</div>
           </div>
           <div className="flex items-center gap-2">
-            {recStatus === "complet" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">recepÈionat</span>}
-            {recStatus === "parÈial" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">parÈial</span>}
-            <span className="text-stone-400">{expanded[key] ? "â¾" : "â¸"}</span>
+            {recStatus === "complet" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">receptionat</span>}
+            {recStatus === "partial" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">partial</span>}
+            <span className="text-stone-400">{expanded[key] ? "v" : ">"}</span>
           </div>
         </button>
         {expanded[key] && (
@@ -578,7 +577,7 @@ export default function NecesarTurtha() {
                       onChange={(e) => setReception(orderRef, p.id, e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))}
                       className="w-16 text-center font-mono text-sm border border-stone-300 rounded-lg py-1" />
                     <button onClick={() => setReception(orderRef, p.id, qty)}
-                      className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${rec[p.id] === qty ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>â tot</button>
+                      className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${rec[p.id] === qty ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>OK tot</button>
                   </div>
                 )}
               </div>
@@ -596,24 +595,24 @@ export default function NecesarTurtha() {
         <div className="px-6 pt-12 pb-8" style={{ background: "#22402F" }}>
           <div className="text-emerald-200 text-xs font-mono tracking-[0.25em] uppercase">Turtha</div>
           <h1 className="text-3xl font-extrabold text-white mt-1">Necesar</h1>
-          <p className="text-emerald-100/70 text-sm mt-1">Comenzi cÄtre furnizori, pe locaÈii</p>
+          <p className="text-emerald-100/70 text-sm mt-1">Comenzi catre furnizori, pe locatii</p>
         </div>
         <div className="p-6 flex flex-col items-center mt-6">
-          <div className="text-sm text-stone-600 mb-4 font-medium">Introdu PIN-ul tÄu</div>
+          <div className="text-sm text-stone-600 mb-4 font-medium">Introdu PIN-ul tau</div>
           <input autoFocus type="password" inputMode="numeric" maxLength={4} value={pinInput}
             onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
             onKeyDown={(e) => { if (e.key === "Enter" && pinInput.length === 4) tryLogin(); }}
             className="text-center text-3xl tracking-[0.5em] font-mono w-48 px-3 py-4 rounded-2xl border-2 border-stone-300 bg-white mb-4" />
           <button onClick={tryLogin} disabled={pinInput.length !== 4}
             className={`w-48 py-3 rounded-2xl font-bold text-white ${pinInput.length === 4 ? "" : "opacity-40"}`} style={{ background: "#22402F" }}>
-            IntrÄ
+            Intra
           </button>
         </div>
       </div>
     );
   }
 
-  // ---------- CONÈINUT ----------
+  // ---------- CONTINUT ----------
   const cartCount = Object.values(cart).filter((q) => q > 0).length;
   const pendingGroups = groupItems("in_aprobare", true);
   const allPendingGroups = groupItems("in_aprobare");
@@ -655,7 +654,7 @@ export default function NecesarTurtha() {
   ];
 
   const approverOptions = users.filter((u) => !u.pending && (u.role === "aprobator" || u.role === "admin"));
-  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locaÈii", "furnizori"] : isApprover ? ["utilizatori", "nomenclator", "locaÈii"] : ["utilizatori"];
+  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locatii", "furnizori"] : isApprover ? ["utilizatori", "nomenclator", "locatii"] : ["utilizatori"];
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "#EFF1EC", fontFamily: "ui-sans-serif, system-ui" }}>
@@ -663,7 +662,7 @@ export default function NecesarTurtha() {
       <div className="px-4 pt-5 pb-3 sticky top-0 z-20" style={{ background: "#22402F" }}>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-emerald-200 text-[10px] font-mono tracking-[0.25em] uppercase">Turtha Â· Necesar</div>
+            <div className="text-emerald-200 text-[10px] font-mono tracking-[0.25em] uppercase">Turtha - Necesar</div>
             <div className="text-white font-bold flex items-center gap-2 mt-0.5 flex-wrap">
               {me.name}
               {me.depts.length > 1 ? (
@@ -677,14 +676,14 @@ export default function NecesarTurtha() {
               {me.locs.length > 1 ? (
                 <select value={activeLoc} onChange={(e) => setActiveLoc(e.target.value)}
                   className="text-[11px] font-mono font-bold bg-stone-800 text-stone-100 rounded px-1.5 py-0.5 border-0">
-                  {me.locs.map((l) => <option key={l} value={l}>{l} â {locName(l)}</option>)}
+                  {me.locs.map((l) => <option key={l} value={l}>{l} - {locName(l)}</option>)}
                 </select>
               ) : (
                 <Badge loc={me.locs[0]} />
               )}
             </div>
           </div>
-          <button onClick={logout} className="text-emerald-200 text-xs underline">ieÈi</button>
+          <button onClick={logout} className="text-emerald-200 text-xs underline">iesi</button>
         </div>
         <div className="flex gap-1.5 mt-3 overflow-x-auto -mx-1 px-1">
           {tabs.map((t) => (
@@ -701,10 +700,10 @@ export default function NecesarTurtha() {
         {tab === "necesar" && (
           <div>
             <div className="flex gap-2 mb-2">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="CautÄ produs..."
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cauta produs..."
                 className="flex-1 px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-sm min-w-0" />
               <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
-                title="Data livrÄrii (opÈional)"
+                title="Data livrarii (optional)"
                 className="px-2 py-2.5 rounded-xl border border-stone-300 bg-white text-xs text-stone-600" />
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-2 mb-1">
@@ -732,23 +731,23 @@ export default function NecesarTurtha() {
                   const n = Math.max(0, Number(val) || 0);
                   if (n === 0) { setCart((c) => ({ ...c, [p.id]: 0 })); return; }
                   const snapped = validQty(n, p);
-                  if (step > 1 && n !== snapped) showToast(`se comandÄ doar la multiplu de ${step} ${p.um}`);
+                  if (step > 1 && n !== snapped) showToast(`se comanda doar la multiplu de ${step} ${p.um}`);
                   setCart((c) => ({ ...c, [p.id]: snapped }));
                 };
                 return (
                   <div key={p.id} className={`bg-white rounded-xl border px-3 py-2.5 flex items-center justify-between ${q > 0 ? "border-emerald-600 ring-1 ring-emerald-600" : "border-stone-200"}`}>
                     <div className="min-w-0 pr-2">
                       <div className="text-sm font-medium text-stone-900 truncate">{p.name}</div>
-                      <div className="text-xs text-stone-500">{sup?.name} Â· {p.cat}</div>
-                      {p.packLabel && <div className="text-[11px] text-stone-400">se comandÄ la: {p.packLabel}</div>}
+                      <div className="text-xs text-stone-500">{sup?.name} - {p.cat}</div>
+                      {p.packLabel && <div className="text-[11px] text-stone-400">se comanda la: {p.packLabel}</div>}
                       {!p.packLabel && step > 1 && <div className="text-[11px] text-stone-400">multiplu de {step} {p.um}</div>}
                       {already > 0 && (
-                        <div className="text-[11px] text-amber-700 font-medium">deja Ã®n comandÄ: {already} {p.um}</div>
+                        <div className="text-[11px] text-amber-700 font-medium">deja in comanda: {already} {p.um}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={handleDec}
-                        className="w-8 h-8 rounded-lg bg-stone-100 font-bold text-stone-700">â</button>
+                        className="w-8 h-8 rounded-lg bg-stone-100 font-bold text-stone-700">-</button>
                       <div className="w-14 text-center">
                         <input type="number" min="0" value={q || ""} placeholder="0"
                           onChange={(e) => handleInput(e.target.value)}
@@ -762,7 +761,7 @@ export default function NecesarTurtha() {
                 );
               })}
               {visibleProducts.length === 0 && (
-                <div className="text-center text-sm text-stone-500 py-10">Niciun produs pentru departamentul ales Ã®n aceastÄ categorie.</div>
+                <div className="text-center text-sm text-stone-500 py-10">Niciun produs pentru departamentul ales in aceasta categorie.</div>
               )}
             </div>
           </div>
@@ -774,14 +773,14 @@ export default function NecesarTurtha() {
             {readyGroups.length > 1 && (
               <button onClick={() => printDriverSheet(readyGroups)}
                 className="w-full mb-3 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-800 font-semibold text-sm">
-                ð¨ Foaie Èofer â toate comenzile ({readyGroups.length})
+                Print Foaie sofer - toate comenzile ({readyGroups.length})
               </button>
             )}
-            {readyGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comandÄ de trimis. AdaugÄ produse din tabul Necesar.</div>}
+            {readyGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comanda de trimis. Adauga produse din tabul Necesar.</div>}
             {readyGroups.map((g) => <OrderCard key={`${g.loc}-${g.sup}`} group={g} mode="de_trimis" />)}
             {allPendingGroups.length > 0 && !isApprover && (
               <div className="mt-4">
-                <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Ãn aÈteptarea aprobÄrii</div>
+                <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">In asteptarea aprobarii</div>
                 {allPendingGroups.map((g) => <OrderCard key={`p-${g.loc}-${g.sup}`} group={g} mode="vizualizare" />)}
               </div>
             )}
@@ -791,7 +790,7 @@ export default function NecesarTurtha() {
         {/* APROBARE */}
         {tab === "aprobare" && isApprover && (
           <div>
-            {pendingGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nimic de aprobat de la oamenii tÄi. ð</div>}
+            {pendingGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nimic de aprobat de la oamenii tai. OK</div>}
             {pendingGroups.map((g) => <OrderCard key={`a-${g.loc}-${g.sup}`} group={g} mode="aprobare" />)}
           </div>
         )}
@@ -802,15 +801,15 @@ export default function NecesarTurtha() {
             <div className="flex gap-2 mb-3">
               <select value={histSup} onChange={(e) => setHistSup(e.target.value)}
                 className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white">
-                <option value="toti">ToÈi furnizorii</option>
+                <option value="toti">Toti furnizorii</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <input value={histSearch} onChange={(e) => setHistSearch(e.target.value)} placeholder="CautÄ produs..."
+              <input value={histSearch} onChange={(e) => setHistSearch(e.target.value)} placeholder="Cauta produs..."
                 className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-xs min-w-0" />
               <input type="date" value={histDay} onChange={(e) => setHistDay(e.target.value)}
                 className="px-2 py-2 rounded-lg border border-stone-300 bg-white text-xs text-stone-600" />
             </div>
-            {sentOrders.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comandÄ gÄsitÄ.</div>}
+            {sentOrders.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comanda gasita.</div>}
             {sentOrders.map(([ref, list]) => <SentOrderCard key={ref} orderRef={ref} list={list} />)}
           </div>
         )}
@@ -824,12 +823,12 @@ export default function NecesarTurtha() {
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap ${adminView === v ? "bg-stone-900 text-white" : "bg-white border border-stone-300 text-stone-600"}`}>{v}</button>
               ))}
             </div>
-            {!isAdmin && isApprover && <div className="text-[11px] text-stone-500 mb-3">Produsele Èi locaÈiile propuse intrÄ Ã®n vigoare dupÄ aprobarea adminului. Utilizatorii noi intrÄ direct dacÄ ai dreptul de adÄugare.</div>}
+            {!isAdmin && isApprover && <div className="text-[11px] text-stone-500 mb-3">Produsele si locatiile propuse intra in vigoare dupa aprobarea adminului. Utilizatorii noi intra direct daca ai dreptul de adaugare.</div>}
 
             {adminView === "utilizatori" && (
               <div className="space-y-2">
                 <div className="bg-white rounded-xl border border-stone-200 p-3">
-                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">AdaugÄ utilizator</div>
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adauga utilizator</div>
                   <div className="flex gap-2 mb-2">
                     <input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Nume"
                       className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
@@ -844,7 +843,7 @@ export default function NecesarTurtha() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">LocaÈii:</span>
+                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locatii:</span>
                     {activeLocations.map((l) => (
                       <button key={l.id} onClick={() => setNewUser((nu) => ({ ...nu, locs: nu.locs.includes(l.id) ? nu.locs.filter((x) => x !== l.id) : [...nu.locs, l.id] }))}
                         className={`text-xs px-2 py-1 rounded-lg font-mono font-bold ${newUser.locs.includes(l.id) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>{l.id}</button>
@@ -852,11 +851,11 @@ export default function NecesarTurtha() {
                   </div>
                   <select value={newUser.approverId || ""} onChange={(e) => setNewUser({ ...newUser, approverId: Number(e.target.value) || null })}
                     className="w-full text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white mb-2">
-                    <option value="">Aprobator (responsabil)â¦</option>
+                    <option value="">Aprobator (responsabil)...</option>
                     {approverOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                   <button onClick={addUser} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
-                    {(isAdmin || me.canAddUsers) ? "AdaugÄ" : "Propune adminului"}
+                    {(isAdmin || me.canAddUsers) ? "Adauga" : "Propune adminului"}
                   </button>
                 </div>
                 {users.map((u) => (
@@ -864,7 +863,7 @@ export default function NecesarTurtha() {
                     <div className="flex items-center justify-between">
                       <div className="font-semibold text-stone-900 flex items-center gap-2">
                         {u.name}
-                        {u.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">aÈteaptÄ admin</span>}
+                        {u.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">asteapta admin</span>}
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {u.depts.map((d) => <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded-full ${deptOf(d).color}`}>{deptOf(d).name}</span>)}
@@ -874,7 +873,7 @@ export default function NecesarTurtha() {
                     {u.pending && isAdmin && (
                       <div className="flex gap-2 mt-2">
                         <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, pending: false } : x))}
-                          className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">AprobÄ</button>
+                          className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
                         <button onClick={() => setUsers((us) => us.filter((x) => x.id !== u.id))}
                           className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                       </div>
@@ -890,16 +889,16 @@ export default function NecesarTurtha() {
                           </select>
                           <select value={u.approverId || ""} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, approverId: Number(e.target.value) || null } : x))}
                             className="text-xs border border-stone-300 rounded-lg px-2 py-1.5 bg-white">
-                            <option value="">FÄrÄ aprobator</option>
-                            {approverOptions.filter((a) => a.id !== u.id).map((a) => <option key={a.id} value={a.id}>â {a.name}</option>)}
+                            <option value="">Fara aprobator</option>
+                            {approverOptions.filter((a) => a.id !== u.id).map((a) => <option key={a.id} value={a.id}>catre {a.name}</option>)}
                           </select>
                           <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, direct: !x.direct } : x))}
                             className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.direct ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
-                            {u.direct ? "â Trimite direct" : "NecesitÄ aprobare"}
+                            {u.direct ? "OK Trimite direct" : "Necesita aprobare"}
                           </button>
                           <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, canAddUsers: !x.canAddUsers } : x))}
                             className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.canAddUsers ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
-                            {u.canAddUsers ? "â AdaugÄ utilizatori" : "Nu adaugÄ utilizatori"}
+                            {u.canAddUsers ? "OK Adauga utilizatori" : "Nu adauga utilizatori"}
                           </button>
                         </div>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -915,7 +914,7 @@ export default function NecesarTurtha() {
                           ))}
                         </div>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">LocaÈii:</span>
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locatii:</span>
                           {activeLocations.map((l) => (
                             <button key={l.id} onClick={() => setUsers((us) => us.map((x) => {
                               if (x.id !== u.id) return x;
@@ -939,7 +938,7 @@ export default function NecesarTurtha() {
             {adminView === "nomenclator" && isApprover && (
               <div>
                 <div className="bg-white rounded-xl border border-stone-200 p-3 mb-3">
-                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">AdaugÄ produs</div>
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adauga produs</div>
                   <input value={newProd.name} onChange={(e) => setNewProd({ ...newProd, name: e.target.value })} placeholder="Nume produs"
                     className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
                   <div className="flex gap-2 mb-2">
@@ -961,12 +960,12 @@ export default function NecesarTurtha() {
                   </div>
                   <div className="flex gap-2 mb-2">
                     <div className="flex-1">
-                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Pas comandÄ</div>
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Pas comanda</div>
                       <input type="number" min="1" value={newProd.stepQty} onChange={(e) => setNewProd({ ...newProd, stepQty: e.target.value ? Number(e.target.value) : "" })}
                         placeholder="ex: 5" className="w-full px-2 py-2 rounded-lg border border-stone-300 text-sm" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Min comandÄ</div>
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1">Min comanda</div>
                       <input type="number" min="0" value={newProd.minQty} onChange={(e) => setNewProd({ ...newProd, minQty: e.target.value ? Number(e.target.value) : "" })}
                         placeholder="ex: 5" className="w-full px-2 py-2 rounded-lg border border-stone-300 text-sm" />
                     </div>
@@ -977,7 +976,7 @@ export default function NecesarTurtha() {
                     </div>
                   </div>
                   <button onClick={addProduct} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
-                    {isAdmin ? "AdaugÄ" : "Propune adminului"}
+                    {isAdmin ? "Adauga" : "Propune adminului"}
                   </button>
                 </div>
                 <div className="space-y-1">
@@ -987,18 +986,18 @@ export default function NecesarTurtha() {
                         <div className="min-w-0 pr-2">
                           <div className="text-sm text-stone-800 flex items-center gap-1.5 flex-wrap">
                             {p.name}
-                            {p.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">aÈteaptÄ admin</span>}
+                            {p.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">asteapta admin</span>}
                           </div>
-                          <div className="text-xs text-stone-500">{suppliers.find((s) => s.id === p.sup)?.name} Â· {p.cat} Â· {p.um} Â· {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
+                          <div className="text-xs text-stone-500">{suppliers.find((s) => s.id === p.sup)?.name} - {p.cat} - {p.um} - {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
                         </div>
                         {isAdmin && !p.pending && (
-                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">Èterge</button>
+                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">sterge</button>
                         )}
                       </div>
                       {p.pending && isAdmin && (
                         <div className="flex gap-2 mt-2">
                           <button onClick={() => setProducts((ps) => ps.map((x) => x.id === p.id ? { ...x, pending: false } : x))}
-                            className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">AprobÄ</button>
+                            className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
                           <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))}
                             className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                         </div>
@@ -1009,20 +1008,20 @@ export default function NecesarTurtha() {
               </div>
             )}
 
-            {adminView === "locaÈii" && isApprover && (
+            {adminView === "locatii" && isApprover && (
               <div>
                 <div className="bg-white rounded-xl border border-stone-200 p-3 mb-3">
-                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">AdaugÄ locaÈie / zonÄ</div>
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adauga locatie / zona</div>
                   <div className="flex gap-2 mb-2">
                     <input value={newLoc.id} onChange={(e) => setNewLoc({ ...newLoc, id: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) })}
                       placeholder="Cod" className="w-20 px-2 py-2 rounded-lg border border-stone-300 text-sm font-mono" />
                     <input value={newLoc.name} onChange={(e) => setNewLoc({ ...newLoc, name: e.target.value })}
-                      placeholder="Nume (ex. ProducÈie Patiserie)" className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
+                      placeholder="Nume (ex. Productie Patiserie)" className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
                   </div>
                   <button onClick={addLocation} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">
-                    {isAdmin ? "AdaugÄ" : "Propune adminului"}
+                    {isAdmin ? "Adauga" : "Propune adminului"}
                   </button>
-                  <div className="text-[11px] text-stone-400 mt-2">Poate fi Èi o zonÄ internÄ sau un client B2B: ProducÈie Patiserie, Cafenea X etc.</div>
+                  <div className="text-[11px] text-stone-400 mt-2">Poate fi si o zona interna sau un client B2B: Productie Patiserie, Cafenea X etc.</div>
                 </div>
                 <div className="space-y-1">
                   {locations.map((l) => {
@@ -1033,18 +1032,18 @@ export default function NecesarTurtha() {
                           <div className="flex items-center gap-2">
                             <Badge loc={l.id} />
                             <span className="text-sm text-stone-800">{l.name}</span>
-                            {l.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">aÈteaptÄ admin</span>}
+                            {l.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">asteapta admin</span>}
                           </div>
                           {isAdmin && !l.pending && (inUse ? (
-                            <span className="text-[11px] text-stone-400">are utilizatori â mutÄ-i Ã®ntÃ¢i</span>
+                            <span className="text-[11px] text-stone-400">are utilizatori - muta-i intai</span>
                           ) : (
-                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">Èterge</button>
+                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">sterge</button>
                           ))}
                         </div>
                         {l.pending && isAdmin && (
                           <div className="flex gap-2 mt-2">
                             <button onClick={() => setLocations((ls) => ls.map((x) => x.id === l.id ? { ...x, pending: false } : x))}
-                              className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">AprobÄ</button>
+                              className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
                             <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))}
                               className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                           </div>
@@ -1064,16 +1063,16 @@ export default function NecesarTurtha() {
                       {s.name}
                       <button onClick={() => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, pickup: !x.pickup } : x))}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.pickup ? "bg-blue-100 text-blue-800" : "bg-stone-100 text-stone-400"}`}>
-                        {s.pickup ? "ð ridicare Èofer" : "livrare furnizor"}
+                        {s.pickup ? "Transport ridicare sofer" : "livrare furnizor"}
                       </button>
                     </div>
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Telefon WhatsApp</label>
                     <input value={s.phone} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, phone: e.target.value } : x))}
                       className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono mb-2" />
-                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Note (zile comandÄ/livrare)</label>
+                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Note (zile comanda/livrare)</label>
                     <input value={s.days} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, days: e.target.value } : x))}
                       className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
-                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Mesaj per locaÈie (antet comandÄ)</label>
+                    <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Mesaj per locatie (antet comanda)</label>
                     {activeLocations.map((l) => (
                       <div key={l.id} className="flex items-center gap-2 mt-1.5">
                         <Badge loc={l.id} />
@@ -1094,7 +1093,7 @@ export default function NecesarTurtha() {
       {tab === "necesar" && cartCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 z-30" style={{ background: "linear-gradient(transparent, #EFF1EC 30%)" }}>
           <button onClick={submitCart} className="w-full py-3.5 rounded-xl text-white font-bold shadow-lg" style={{ background: "#22402F" }}>
-            {me.direct ? `AdaugÄ la comenzi (${cartCount} produse)` : `Trimite spre aprobare (${cartCount} produse)`}
+            {me.direct ? `Adauga la comenzi (${cartCount} produse)` : `Trimite spre aprobare (${cartCount} produse)`}
           </button>
         </div>
       )}
