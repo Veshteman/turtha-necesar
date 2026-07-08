@@ -133,13 +133,36 @@ const validQty = (qty, p) => {
   return min > 0 ? Math.max(snapped, min) : snapped;
 };
 
+// ---------- DEVICE LOCK (v10) ----------
+// Un token aleator per dispozitiv, tinut doar in localStorage.
+// In Supabase se salveaza DOAR hash-ul SHA-256 al tokenului + user_id.
+// Nu se colecteaza IMEI, locatie, contacte sau alte date personale.
+const DEVICE_TOKEN_KEY = "turtha-device-token";
+const getDeviceToken = () => {
+  try {
+    let t = localStorage.getItem(DEVICE_TOKEN_KEY);
+    if (!t) {
+      const arr = new Uint8Array(16);
+      crypto.getRandomValues(arr);
+      t = Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem(DEVICE_TOKEN_KEY, t);
+    }
+    return t;
+  } catch (e) { return null; }
+};
+const hashToken = async (t) => {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+};
+
 export default function NecesarTurtha() {
   const [users, setUsers] = useState(DEMO_USERS);
   const [products, setProducts] = useState(DEMO_PRODUCTS);
   const [suppliers, setSuppliers] = useState(DEMO_SUPPLIERS);
   const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
   const [items, setItems] = useState([]);
-  const [receptions, setReceptions] = useState({}); // orderRef -> { productId: recQty }
+  const [receptions, setReceptions] = useState({});
+  const [devices, setDevices] = useState({}); // hash(deviceToken) -> userId // orderRef -> { productId: recQty }
   const [seq, setSeq] = useState(1);
   const [loaded, setLoaded] = useState(false);
 
@@ -182,6 +205,7 @@ export default function NecesarTurtha() {
           if (d.locations) setLocations(d.locations);
           if (d.items) setItems(d.items);
           if (d.receptions) setReceptions(d.receptions);
+          if (d.devices) setDevices(d.devices);
           if (d.seq) setSeq(d.seq);
         }
       } catch (e) { /* prima rulare - date demo */ }
@@ -195,12 +219,12 @@ export default function NecesarTurtha() {
       try {
         await supabase.from("store").upsert({
           key: STORE_KEY,
-          value: { users, products, suppliers, locations, items, receptions, seq },
+          value: { users, products, suppliers, locations, items, receptions, devices, seq },
           updated_at: new Date().toISOString(),
         });
       } catch (e) { console.error("Salvare esuata", e); }
     })();
-  }, [users, products, suppliers, locations, items, receptions, seq, loaded]);
+  }, [users, products, suppliers, locations, items, receptions, devices, seq, loaded]);
 
   // Polling la fiecare 5 secunde
   useEffect(() => {
@@ -219,6 +243,7 @@ export default function NecesarTurtha() {
           if (v.locations) setLocations(v.locations);
           if (v.items) setItems(v.items);
           if (v.receptions) setReceptions(v.receptions);
+          if (v.devices) setDevices(v.devices);
           if (v.seq) setSeq(v.seq);
         }
       } catch(e) {}
@@ -235,18 +260,35 @@ export default function NecesarTurtha() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   // ---------- LOGIN (doar PIN, fara lista de utilizatori) ----------
-  const tryLogin = () => {
-    const u = users.find((x) => !x.pending && x.pin === pinInput);
-    if (u) {
-      setCurrentUserId(u.id);
-      setActiveLoc(u.locs[0]);
-      setActiveDept(u.depts[0]);
-      setTab("necesar");
-      setPinInput("");
-    } else {
+  const tryLogin = async (pinArg) => {
+    const code = typeof pinArg === "string" ? pinArg : pinInput;
+    if (!loaded) { showToast("Se incarca datele... reincearca in 2 secunde"); return; }
+    const u = users.find((x) => !x.pending && x.pin === code);
+    if (!u) {
       showToast("PIN necunoscut");
       setPinInput("");
+      return;
     }
+    // Device lock: un dispozitiv = un singur utilizator
+    try {
+      const token = getDeviceToken();
+      if (token) {
+        const hash = await hashToken(token);
+        const boundTo = devices[hash];
+        if (boundTo && boundTo !== u.id) {
+          const owner = users.find((x) => x.id === boundTo);
+          showToast(`Dispozitiv asociat cu ${owner ? owner.name : "alt utilizator"}. Cere adminului resetarea dispozitivului.`);
+          setPinInput("");
+          return;
+        }
+        if (!boundTo) setDevices((prev) => ({ ...prev, [hash]: u.id }));
+      }
+    } catch (e) { /* browser vechi - loginul continua */ }
+    setCurrentUserId(u.id);
+    setActiveLoc(u.locs[0]);
+    setActiveDept(u.depts[0]);
+    setTab("necesar");
+    setPinInput("");
   };
 
   const logout = () => { setCurrentUserId(null); setActiveLoc(null); setActiveDept(null); setCart({}); };
@@ -600,10 +642,14 @@ export default function NecesarTurtha() {
         <div className="p-6 flex flex-col items-center mt-6">
           <div className="text-sm text-stone-600 mb-4 font-medium">Introdu PIN-ul tau</div>
           <input autoFocus type="password" inputMode="numeric" maxLength={4} value={pinInput}
-            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+              setPinInput(v);
+              if (v.length === 4) tryLogin(v);
+            }}
             onKeyDown={(e) => { if (e.key === "Enter" && pinInput.length === 4) tryLogin(); }}
             className="text-center text-3xl tracking-[0.5em] font-mono w-48 px-3 py-4 rounded-2xl border-2 border-stone-300 bg-white mb-4" />
-          <button onClick={tryLogin} disabled={pinInput.length !== 4}
+          <button onClick={() => tryLogin()} disabled={pinInput.length !== 4}
             className={`w-48 py-3 rounded-2xl font-bold text-white ${pinInput.length === 4 ? "" : "opacity-40"}`} style={{ background: "#22402F" }}>
             Intra
           </button>
@@ -899,6 +945,14 @@ export default function NecesarTurtha() {
                           <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, canAddUsers: !x.canAddUsers } : x))}
                             className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.canAddUsers ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
                             {u.canAddUsers ? "OK Adauga utilizatori" : "Nu adauga utilizatori"}
+                          </button>
+                          <button onClick={() => {
+                            setDevices((prev) => Object.fromEntries(Object.entries(prev).filter(([, uid]) => uid !== u.id)));
+                            showToast(`Dispozitiv resetat pentru ${u.name}`);
+                          }}
+                            disabled={!Object.values(devices).includes(u.id)}
+                            className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${Object.values(devices).includes(u.id) ? "bg-red-100 text-red-700" : "bg-stone-100 text-stone-300"}`}>
+                            {Object.values(devices).includes(u.id) ? "Reseteaza dispozitiv" : "Fara dispozitiv"}
                           </button>
                         </div>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
