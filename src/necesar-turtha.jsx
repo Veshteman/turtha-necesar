@@ -162,6 +162,7 @@ export default function NecesarTurtha() {
   const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
   const [items, setItems] = useState([]);
   const [receptions, setReceptions] = useState({});
+  const [receptionMeta, setReceptionMeta] = useState({}); // orderRef -> { confirmedBy, receivedAt }
   const [devices, setDevices] = useState({}); // hash(deviceToken) -> userId // orderRef -> { productId: recQty }
   const [seq, setSeq] = useState(1);
   const [loaded, setLoaded] = useState(false);
@@ -211,6 +212,7 @@ export default function NecesarTurtha() {
           if (d.locations) setLocations(d.locations);
           if (d.items) setItems(d.items);
           if (d.receptions) setReceptions(d.receptions);
+          if (d.receptionMeta) setReceptionMeta(d.receptionMeta);
           if (d.devices) setDevices(d.devices);
           if (d.seq) setSeq(d.seq);
         }
@@ -225,12 +227,12 @@ export default function NecesarTurtha() {
       try {
         await supabase.from("store").upsert({
           key: STORE_KEY,
-          value: { users, products, suppliers, locations, items, receptions, devices, seq },
+          value: { users, products, suppliers, locations, items, receptions, receptionMeta, devices, seq },
           updated_at: new Date().toISOString(),
         });
       } catch (e) { console.error("Salvare esuata", e); }
     })();
-  }, [users, products, suppliers, locations, items, receptions, devices, seq, loaded]);
+  }, [users, products, suppliers, locations, items, receptions, receptionMeta, devices, seq, loaded]);
 
   // Polling la fiecare 5 secunde
   useEffect(() => {
@@ -249,6 +251,7 @@ export default function NecesarTurtha() {
           if (v.locations) setLocations(v.locations);
           if (v.items) setItems(v.items);
           if (v.receptions) setReceptions(v.receptions);
+          if (v.receptionMeta) setReceptionMeta(v.receptionMeta);
           if (v.devices) setDevices(v.devices);
           if (v.seq) setSeq(v.seq);
         }
@@ -486,8 +489,33 @@ export default function NecesarTurtha() {
     openSendModal(first.loc, first.sup, first.items, rest, true);
   };
 
-  const setReception = (orderRef, productId, qty) => {
-    setReceptions((prev) => ({ ...prev, [orderRef]: { ...(prev[orderRef] || {}), [productId]: qty } }));
+  const getRecVal = (orderRef, pid) => {
+    const v = receptions[orderRef]?.[pid];
+    if (v == null) return undefined;
+    return typeof v === "number" ? v : v.rec;
+  };
+  const getRecNote = (orderRef, pid) => {
+    const v = receptions[orderRef]?.[pid];
+    return (v && typeof v === "object") ? (v.note || "") : "";
+  };
+  const setRecVal = (orderRef, pid, rec) => {
+    setReceptions((prev) => {
+      const cur = prev[orderRef]?.[pid];
+      const note = (cur && typeof cur === "object") ? cur.note : "";
+      const entry = rec === undefined ? undefined : { rec, note };
+      return { ...prev, [orderRef]: { ...(prev[orderRef] || {}), [pid]: entry } };
+    });
+  };
+  const setRecNote = (orderRef, pid, note) => {
+    setReceptions((prev) => {
+      const cur = prev[orderRef]?.[pid];
+      const rec = (cur && typeof cur === "object") ? cur.rec : (typeof cur === "number" ? cur : undefined);
+      return { ...prev, [orderRef]: { ...(prev[orderRef] || {}), [pid]: { rec, note } } };
+    });
+  };
+  const confirmReception = (orderRef) => {
+    setReceptionMeta((prev) => ({ ...prev, [orderRef]: { confirmedBy: me.id, receivedAt: Date.now() } }));
+    showToast("Receptie confirmata");
   };
 
   // ---------- FOAIE SOFER (printabil A4) ----------
@@ -763,10 +791,10 @@ export default function NecesarTurtha() {
       if (!byProd[p.id]) byProd[p.id] = { p, qty: 0 };
       byProd[p.id].qty += it.qty;
     });
-    const rec = receptions[orderRef] || {};
     const prods = Object.values(byProd);
-    const recStatus = prods.every((r) => rec[r.p.id] === r.qty) ? "complet"
-      : prods.some((r) => rec[r.p.id] != null) ? "partial" : null;
+    const meta = receptionMeta[orderRef];
+    const recStatus = prods.every((r) => { const v = getRecVal(orderRef, r.p.id); return v != null && v >= r.qty; }) ? "complet"
+      : prods.some((r) => getRecVal(orderRef, r.p.id) != null) ? "partial" : null;
     const canReceive = isApprover || me.locs.includes(first.loc);
     const key = `hist-${orderRef}`;
     return (
@@ -785,23 +813,47 @@ export default function NecesarTurtha() {
         </button>
         {expanded[key] && (
           <div className="px-4 pb-3 divide-y divide-stone-100">
-            {prods.map(({ p, qty }) => (
-              <div key={p.id} className="py-2 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm text-stone-800">{p.name}</div>
-                  <div className="text-xs text-stone-500">comandat: <span className="font-mono font-semibold">{qty} {p.um}</span></div>
+            {prods.map(({ p, qty }) => {
+              const rv = getRecVal(orderRef, p.id);
+              const diff = rv == null ? null : rv - qty;
+              return (
+              <div key={p.id} className="py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm text-stone-800">{p.name}</div>
+                    <div className="text-xs text-stone-500">comandat: <span className="font-mono font-semibold">{qty} {p.um}</span>
+                      {diff != null && diff < 0 && <span className="text-red-600 ml-2">lipsa {Math.abs(diff)} {p.um}</span>}
+                      {diff != null && diff > 0 && <span className="text-amber-600 ml-2">in plus {diff} {p.um}</span>}
+                      {diff === 0 && <span className="text-emerald-600 ml-2">complet</span>}
+                    </div>
+                  </div>
+                  {canReceive && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <input type="number" min="0" placeholder="primit" value={rv ?? ""}
+                        onChange={(e) => setRecVal(orderRef, p.id, e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))}
+                        className="w-16 text-center font-mono text-sm border border-stone-300 rounded-lg py-1" />
+                      <button onClick={() => setRecVal(orderRef, p.id, qty)}
+                        className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${rv === qty ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>OK tot</button>
+                    </div>
+                  )}
                 </div>
                 {canReceive && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <input type="number" min="0" placeholder="primit" value={rec[p.id] ?? ""}
-                      onChange={(e) => setReception(orderRef, p.id, e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))}
-                      className="w-16 text-center font-mono text-sm border border-stone-300 rounded-lg py-1" />
-                    <button onClick={() => setReception(orderRef, p.id, qty)}
-                      className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${rec[p.id] === qty ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>OK tot</button>
-                  </div>
+                  <input value={getRecNote(orderRef, p.id)} onChange={(e) => setRecNote(orderRef, p.id, e.target.value)}
+                    placeholder="observatie receptie (optional)"
+                    className="mt-1.5 w-full px-2 py-1 rounded-lg border border-stone-200 text-xs" />
                 )}
               </div>
-            ))}
+              );
+            })}
+            {canReceive && (
+              <div className="pt-2">
+                {meta ? (
+                  <div className="text-xs text-emerald-700 font-medium">Receptie confirmata de {users.find((u) => u.id === meta.confirmedBy)?.name || "?"} la {fmtDate(meta.receivedAt)}</div>
+                ) : (
+                  <button onClick={() => confirmReception(orderRef)} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">Confirma receptia</button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
