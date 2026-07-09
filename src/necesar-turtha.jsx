@@ -172,6 +172,8 @@ export default function NecesarTurtha() {
   const [pinInput, setPinInput] = useState("");
   const [tab, setTab] = useState("necesar");
   const [cart, setCart] = useState({});
+  const [cartNotes, setCartNotes] = useState({});
+  const [orderNote, setOrderNote] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("Toate");
@@ -354,11 +356,13 @@ export default function NecesarTurtha() {
     let s = seq;
     const newItems = entries.map(([pid, qty]) => ({
       id: s++, productId: Number(pid), qty, userId: me.id, loc: activeLoc, dept: activeDept, status, ts: Date.now(),
-      deliveryDate: deliveryDate || null,
+      deliveryDate: deliveryDate || null, note: cartNotes[pid] || "", orderNote: orderNote || null,
     }));
     setSeq(s);
     setItems((prev) => [...prev, ...newItems]);
     setCart({});
+    setCartNotes({});
+    setOrderNote("");
     setDeliveryDate("");
     showToast(status === "de_trimis" ? "Necesar adaugat - gata de trimis" : "Necesar trimis spre aprobare");
     setTab("comenzi");
@@ -429,17 +433,20 @@ export default function NecesarTurtha() {
     const byProd = {};
     groupItems.forEach((it) => {
       const p = products.find((x) => x.id === it.productId);
-      if (!byProd[p.id]) byProd[p.id] = { name: p.name, um: p.um, qty: 0, stepQty: p.stepQty, packLabel: p.packLabel };
+      if (!byProd[p.id]) byProd[p.id] = { name: p.name, um: p.um, qty: 0, stepQty: p.stepQty, packLabel: p.packLabel, notes: [] };
       byProd[p.id].qty += it.qty;
+      if (it.note) byProd[p.id].notes.push(it.note);
     });
     const lines = Object.values(byProd).map((r) => {
       const packSuffix = r.packLabel && r.stepQty && r.stepQty > 1
         ? ` (${r.qty / r.stepQty} x ${r.packLabel})` : "";
-      return `- ${r.name} - ${r.qty} ${r.um}${packSuffix}`;
+      return `- ${r.name} - ${r.qty} ${r.um}${packSuffix}${r.notes && r.notes.length ? ` (${r.notes.join("; ")})` : ""}`;
     });
     const dDate = groupItems.find((it) => it.deliveryDate)?.deliveryDate;
     const dLine = dDate ? `\nLivrare dorita: ${new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}` : "";
-    return `${header}\n\n${lines.join("\n")}${dLine}\n\nMultumim!`;
+    const oNotes = Array.from(new Set(groupItems.map((it) => it.orderNote).filter(Boolean)));
+    const oLine = oNotes.length ? `\nObs: ${oNotes.join("; ")}` : "";
+    return `${header}\n\n${lines.join("\n")}${dLine}${oLine}\n\nMultumim!`;
   };
 
   const openSendModal = (loc, supId, groupItems, queueRest = [], batch = false) => {
@@ -612,12 +619,15 @@ export default function NecesarTurtha() {
         const d = deptOf(it.dept);
         const p = products.find((x) => x.id === it.productId);
         return (
-          <div key={it.id} className="flex items-center justify-between text-xs text-stone-600">
-            <span className="flex items-center gap-1.5">
-              <span className={`px-1.5 py-0.5 rounded-full ${d.color}`}>{d.name}</span>
-              <span>{u ? u.name : "?"}</span>
-            </span>
-            <span className="font-mono">{it.qty} {p.um}</span>
+          <div key={it.id} className="text-xs text-stone-600">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className={`px-1.5 py-0.5 rounded-full ${d.color}`}>{d.name}</span>
+                <span>{u ? u.name : "?"}</span>
+              </span>
+              <span className="font-mono">{it.qty} {p.um}</span>
+            </div>
+            {it.note && <div className="text-stone-400 italic">obs: {it.note}</div>}
           </div>
         );
       })}
@@ -965,7 +975,8 @@ export default function NecesarTurtha() {
                   setCart((c) => ({ ...c, [p.id]: snapped }));
                 };
                 return (
-                  <div key={p.id} className={`bg-white rounded-xl border px-3 py-2.5 flex items-center justify-between ${q > 0 ? "border-emerald-600 ring-1 ring-emerald-600" : "border-stone-200"}`}>
+                  <div key={p.id} className={`bg-white rounded-xl border px-3 py-2.5 ${q > 0 ? "border-emerald-600 ring-1 ring-emerald-600" : "border-stone-200"}`}>
+                    <div className="flex items-center justify-between">
                     <div className="min-w-0 pr-2">
                       <div className="text-sm font-medium text-stone-900 truncate">{p.name}</div>
                       <div className="text-xs text-stone-500">{sup?.name} - {p.cat}</div>
@@ -987,6 +998,10 @@ export default function NecesarTurtha() {
                       <button onClick={handleInc}
                         className="w-8 h-8 rounded-lg bg-stone-900 text-white font-bold">+</button>
                     </div>
+                    </div>
+                    {q > 0 && (
+                      <input value={cartNotes[p.id] || ""} onChange={(e) => setCartNotes((n) => ({ ...n, [p.id]: e.target.value }))} placeholder="observatie (optional): ex. sa fie copt" className="mt-2 w-full px-2 py-1.5 rounded-lg border border-stone-200 text-xs" />
+                    )}
                   </div>
                 );
               })}
@@ -1372,6 +1387,7 @@ export default function NecesarTurtha() {
       {/* BUTON TRIMITE NECESAR */}
       {tab === "necesar" && cartCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 z-30" style={{ background: "linear-gradient(transparent, #EFF1EC 30%)" }}>
+          <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Observatie generala comanda (optional): ex. livrare dimineata" rows={2} className="w-full mb-2 px-3 py-2 rounded-xl border border-stone-300 text-sm bg-white" />
           <button onClick={submitCart} className="w-full py-3.5 rounded-xl text-white font-bold shadow-lg" style={{ background: "#22402F" }}>
             {me.direct ? `Adauga la comenzi (${cartCount} produse)` : `Trimite spre aprobare (${cartCount} produse)`}
           </button>
