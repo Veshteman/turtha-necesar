@@ -569,7 +569,13 @@ export default function NecesarTurtha() {
     }
   };
 
-  const cancelSend = () => { setSendModal(null); };
+  const cancelSend = () => {
+    if (sendModal) {
+      const ids = sendModal.groupItems.map((g) => g.id);
+      setItems((prev) => prev.map((it) => ids.includes(it.id) && normalizeStatus(it.status) === "whatsapp_opened" ? { ...it, status: "approved" } : it));
+    }
+    setSendModal(null);
+  };
 
   const copyMsg = async (msg) => {
     try { await navigator.clipboard.writeText(msg); showToast("Mesaj copiat"); }
@@ -607,10 +613,25 @@ export default function NecesarTurtha() {
       return { ...prev, [orderRef]: { ...(prev[orderRef] || {}), [pid]: { rec, note } } };
     });
   };
+  const cancelGroup = (loc, supId, groupList) => {
+    if (!window.confirm("Anulezi aceasta comanda?")) return;
+    const ids = groupList.map((g) => g.id);
+    setItems((prev) => prev.map((it) => ids.includes(it.id) ? { ...it, status: "cancelled" } : it));
+    logAudit("comanda_anulata", "order", null, `${suppliers.find((x) => x.id === supId)?.name || supId} - ${locName(loc)}`);
+    showToast("Comanda anulata");
+  };
   const confirmReception = (orderRef) => {
     setReceptionMeta((prev) => ({ ...prev, [orderRef]: { confirmedBy: me.id, receivedAt: Date.now() } }));
+    const orderItems = items.filter((it) => it.orderRef === orderRef);
+    const byP = {};
+    orderItems.forEach((it) => { byP[it.productId] = (byP[it.productId] || 0) + it.qty; });
+    const pids = Object.keys(byP);
+    const allRec = pids.length > 0 && pids.every((pid) => { const rv = getRecVal(orderRef, Number(pid)); return rv != null && rv >= byP[pid]; });
+    const anyRec = pids.some((pid) => getRecVal(orderRef, Number(pid)) != null);
+    const newStatus = allRec ? "received" : (anyRec ? "partially_received" : null);
+    if (newStatus) setItems((prev) => prev.map((it) => it.orderRef === orderRef ? { ...it, status: newStatus } : it));
     showToast("Receptie confirmata");
-    logAudit("receptie_confirmata", "order", orderRef, "");
+    logAudit("receptie_confirmata", "order", orderRef, newStatus || "");
   };
 
   // ---------- FOAIE SOFER (printabil A4) ----------
@@ -785,6 +806,7 @@ export default function NecesarTurtha() {
           <div>
             <div className="font-bold text-stone-900">{sup.name}</div>
             <div className="text-xs text-stone-500">{sup.days}</div>
+            <div className="text-[10px] mt-0.5 inline-block px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{statusLabel(group.items[0].status)}</div>
             {dDate && <div className="text-xs text-emerald-700 font-medium">Livrare dorita: {new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}</div>}
           </div>
           <Badge loc={group.loc} />
@@ -868,6 +890,7 @@ export default function NecesarTurtha() {
                 WhatsApp catre {sup.name}
               </button>
               <button onClick={() => printDriverSheet([group])} className="px-3 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">Print</button>
+              <button onClick={() => cancelGroup(group.loc, group.sup, group.items)} className="px-3 py-2.5 rounded-lg bg-red-100 text-red-700 font-semibold text-sm">Anuleaza</button>
             </div>
           ) : (
             <div className="text-xs text-center text-stone-500">Doar un aprobator poate trimite aceasta comanda</div>
@@ -902,6 +925,7 @@ export default function NecesarTurtha() {
           <div>
             <div className="font-semibold text-stone-900 text-sm">{sup?.name} <span className="text-stone-400">-</span> {locName(first.loc)}</div>
             <div className="text-xs text-stone-500">{fmtDate(first.sentTs)} - trimisa de {sender?.name || "?"} - {prods.length} produse</div>
+            <div className="text-[10px] mt-0.5 inline-block px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-700 font-semibold">{statusLabel(first.status)}</div>
           </div>
           <div className="flex items-center gap-2">
             {recStatus === "complet" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">receptionat</span>}
@@ -1636,7 +1660,7 @@ export default function NecesarTurtha() {
               ) : (
                 <div>
                   <div className="text-sm text-stone-700 mb-3">Comanda a fost deschisa in WhatsApp. Apasa <b>Send</b> in WhatsApp, apoi revino aici si confirma.</div>
-                  <button onClick={() => { logAudit("whatsapp_deschis", "order", null, sendModal.supName); window.open(sendModal.url, "_blank"); }} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm mb-2" style={{ background: "#1FAF54" }}>Deschide WhatsApp</button>
+                  <button onClick={() => { const ids = sendModal.groupItems.map((g) => g.id); setItems((prev) => prev.map((it) => ids.includes(it.id) && normalizeStatus(it.status) === "approved" ? { ...it, status: "whatsapp_opened" } : it)); logAudit("whatsapp_deschis", "order", null, sendModal.supName); window.open(sendModal.url, "_blank"); }} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm mb-2" style={{ background: "#1FAF54" }}>Deschide WhatsApp</button>
                   <button onClick={() => copyMsg(sendModal.msg)} className="w-full py-2 rounded-lg bg-stone-100 text-stone-600 font-semibold text-xs">sau copiaza mesajul</button>
                 </div>
               )}
