@@ -176,6 +176,7 @@ export default function NecesarTurtha() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("Toate");
   const [supFilter, setSupFilter] = useState("toti");
+  const [umFilter, setUmFilter] = useState("toate");
   const [expanded, setExpanded] = useState({});
   const [toast, setToast] = useState(null);
   const [sendModal, setSendModal] = useState(null); // { loc, supId, supName, isGroup, msg, url, groupItems, queueRest }
@@ -295,9 +296,29 @@ export default function NecesarTurtha() {
   const tryLogin = async (pinArg) => {
     const code = typeof pinArg === "string" ? pinArg : pinInput;
     if (!loaded) { showToast("Se incarca datele... reincearca in 2 secunde"); return; }
+    // Blocare temporara dupa 5 incercari gresite (per dispozitiv)
+    try {
+      const lockUntil = Number(localStorage.getItem("turtha-login-lockuntil") || 0);
+      if (lockUntil > Date.now()) {
+        const min = Math.ceil((lockUntil - Date.now()) / 60000);
+        showToast(`Prea multe incercari gresite. Reincearca in ${min} min.`);
+        setPinInput("");
+        return;
+      }
+    } catch (e) {}
     const u = users.find((x) => !x.pending && x.pin === code);
     if (!u) {
-      showToast("PIN necunoscut");
+      try {
+        const fails = Number(localStorage.getItem("turtha-login-fails") || 0) + 1;
+        if (fails >= 5) {
+          localStorage.setItem("turtha-login-lockuntil", String(Date.now() + 5 * 60000));
+          localStorage.setItem("turtha-login-fails", "0");
+          showToast("Prea multe incercari gresite. Blocat 5 minute.");
+        } else {
+          localStorage.setItem("turtha-login-fails", String(fails));
+          showToast(`PIN gresit. Incercari ramase: ${5 - fails}`);
+        }
+      } catch (e) { showToast("PIN gresit"); }
       setPinInput("");
       return;
     }
@@ -308,14 +329,14 @@ export default function NecesarTurtha() {
         const hash = await hashToken(token);
         const boundTo = devices[hash];
         if (boundTo && boundTo !== u.id) {
-          const owner = users.find((x) => x.id === boundTo);
-          showToast(`Dispozitiv asociat cu ${owner ? owner.name : "alt utilizator"}. Cere adminului resetarea dispozitivului.`);
+          showToast("Acest dispozitiv este deja asociat cu alt utilizator. Contacteaza adminul.");
           setPinInput("");
           return;
         }
         if (!boundTo) setDevices((prev) => ({ ...prev, [hash]: u.id }));
       }
     } catch (e) { /* browser vechi - loginul continua */ }
+    try { localStorage.setItem("turtha-login-fails", "0"); localStorage.removeItem("turtha-login-lockuntil"); } catch (e) {}
     setCurrentUserId(u.id);
     setActiveLoc(u.locs[0]);
     setActiveDept(u.depts[0]);
@@ -420,12 +441,12 @@ export default function NecesarTurtha() {
     return `${header}\n\n${lines.join("\n")}${dLine}\n\nMultumim!`;
   };
 
-  const openSendModal = (loc, supId, groupItems, queueRest = []) => {
+  const openSendModal = (loc, supId, groupItems, queueRest = [], batch = false) => {
     const sup = suppliers.find((s) => s.id === supId);
     const msg = buildOrderMsg(loc, supId, groupItems);
     const isGroup = sup.dest === "group";
     const url = isGroup ? null : `https://wa.me/${sup.phone}?text=${encodeURIComponent(msg)}`;
-    setSendModal({ loc, supId, supName: sup.name, isGroup, msg, url, groupItems, queueRest });
+    setSendModal({ loc, supId, supName: sup.name, isGroup, msg, url, groupItems, queueRest, batch });
   };
 
   const confirmSent = () => {
@@ -436,9 +457,10 @@ export default function NecesarTurtha() {
     showToast(`Comanda ${supName} - ${locName(loc)} confirmata`);
     if (queueRest && queueRest.length) {
       const [next, ...rest] = queueRest;
-      openSendModal(next.loc, next.sup, next.items, rest);
+      openSendModal(next.loc, next.sup, next.items, rest, sendModal.batch);
     } else {
       setSendModal(null);
+      if (sendModal.batch) showToast("Toate comenzile selectate au fost procesate.");
     }
   };
 
@@ -453,7 +475,7 @@ export default function NecesarTurtha() {
     const groups = readyGroups.filter((g) => isApprover || (me && me.direct && me.locs.includes(g.loc)));
     if (!groups.length) { showToast("Nicio comanda de trimis"); return; }
     const [first, ...rest] = groups;
-    openSendModal(first.loc, first.sup, first.items, rest);
+    openSendModal(first.loc, first.sup, first.items, rest, true);
   };
 
   const setReception = (orderRef, productId, qty) => {
@@ -569,9 +591,11 @@ export default function NecesarTurtha() {
   const myProducts = me ? products.filter((p) => !p.pending && p.depts.includes(activeDept)) : [];
   const cats = useMemo(() => ["Toate", ...Array.from(new Set(myProducts.map((p) => p.cat)))], [products, activeDept, currentUserId]);
   const mySuppliers = Array.from(new Set(myProducts.map((p) => p.sup)));
+  const myUms = Array.from(new Set(myProducts.map((p) => p.um)));
   const visibleProducts = myProducts.filter((p) =>
     (catFilter === "Toate" || p.cat === catFilter) &&
     (supFilter === "toti" || p.sup === supFilter) &&
+    (umFilter === "toate" || p.um === umFilter) &&
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -901,6 +925,13 @@ export default function NecesarTurtha() {
                 <select value={activeLoc} onChange={(e) => setActiveLoc(e.target.value)}
                   className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white shrink-0 font-mono font-bold">
                   {me.locs.map((l) => <option key={l} value={l}>{l} - {locName(l)}</option>)}
+                </select>
+              )}
+              {myUms.length > 1 && (
+                <select value={umFilter} onChange={(e) => setUmFilter(e.target.value)}
+                  className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white shrink-0">
+                  <option value="toate">Toate UM</option>
+                  {myUms.map((um) => <option key={um} value={um}>{um}</option>)}
                 </select>
               )}
             </div>
