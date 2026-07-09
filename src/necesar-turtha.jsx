@@ -414,6 +414,7 @@ export default function NecesarTurtha() {
   };
 
   const deletePendingItem = (itemId) => {
+    if (!window.confirm("Stergi produsul din comanda?")) return;
     setItems((prev) => prev.filter((it) => {
       if (it.id !== itemId) return true;
       return !canEditPending(it);
@@ -1143,6 +1144,7 @@ export default function NecesarTurtha() {
                             {u.canAddUsers ? "OK Adauga utilizatori" : "Nu adauga utilizatori"}
                           </button>
                           <button onClick={() => {
+                            if (!window.confirm(`Resetezi dispozitivul pentru ${u.name}?`)) return;
                             setDevices((prev) => Object.fromEntries(Object.entries(prev).filter(([, uid]) => uid !== u.id)));
                             showToast(`Dispozitiv resetat pentru ${u.name}`);
                           }}
@@ -1241,7 +1243,7 @@ export default function NecesarTurtha() {
                           <div className="text-xs text-stone-500">{dSuppliers.find((s) => s.id === p.sup)?.name} - {p.cat} - {p.um} - {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
                         </div>
                         {isAdmin && !p.pending && (
-                          <button onClick={() => setDProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">sterge</button>
+                          <button onClick={() => { if (window.confirm("Stergi produsul definitiv?")) setDProducts((ps) => ps.filter((x) => x.id !== p.id)); }} className="text-xs text-red-500 shrink-0">sterge</button>
                         )}
                       </div>
                       {p.pending && isAdmin && (
@@ -1287,7 +1289,7 @@ export default function NecesarTurtha() {
                           {isAdmin && !l.pending && (inUse ? (
                             <span className="text-[11px] text-stone-400">are utilizatori - muta-i intai</span>
                           ) : (
-                            <button onClick={() => setDLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">sterge</button>
+                            <button onClick={() => { if (window.confirm("Stergi locatia definitiv?")) setDLocations((ls) => ls.filter((x) => x.id !== l.id)); }} className="text-xs text-red-500">sterge</button>
                           ))}
                         </div>
                         {l.pending && isAdmin && (
@@ -1339,7 +1341,7 @@ export default function NecesarTurtha() {
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.dest === "group" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
                         {s.dest === "group" ? "grup WhatsApp (copy)" : "numar direct"}
                       </button>
-                      <button onClick={() => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, active: x.active === false ? true : false } : x))}
+                      <button onClick={() => { if (s.active !== false && !window.confirm(`Dezactivezi furnizorul ${s.name}?`)) return; setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, active: x.active === false ? true : false } : x)); }}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.active === false ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-800"}`}>
                         {s.active === false ? "inactiv" : "activ"}
                       </button>
