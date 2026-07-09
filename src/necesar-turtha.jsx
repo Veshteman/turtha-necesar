@@ -339,6 +339,35 @@ export default function NecesarTurtha() {
     }).filter(Boolean));
   };
 
+  // v10 Etapa 2: editare comanda pending (doar cat timp e in_aprobare)
+  // Un item poate fi editat de proprietar sau de aprobatorul lui. Audit: modifiedBy + modifiedAt.
+  const canEditPending = (it) => {
+    if (it.status !== "in_aprobare") return false;
+    if (!me) return false;
+    if (it.userId === me.id) return true;
+    return canApproveItem(it);
+  };
+
+  const editPendingQty = (itemId, delta) => {
+    setItems((prev) => prev.map((it) => {
+      if (it.id !== itemId) return it;
+      if (!canEditPending(it)) return it;
+      const p = products.find((x) => x.id === it.productId);
+      const step = p?.stepQty || 1;
+      const newQty = it.qty + delta * step;
+      if (newQty <= 0) return null;
+      return { ...it, qty: validQty(newQty, p) || step, modifiedBy: me.id, modifiedAt: Date.now() };
+    }).filter(Boolean));
+  };
+
+  const deletePendingItem = (itemId) => {
+    setItems((prev) => prev.filter((it) => {
+      if (it.id !== itemId) return true;
+      return !canEditPending(it);
+    }));
+    showToast("Produs sters din comanda");
+  };
+
   const sendGroup = (loc, supId, groupItems) => {
     const sup = suppliers.find((s) => s.id === supId);
     const header = (sup.templates && sup.templates[loc]) || `Comanda Turtha ${locName(loc)}:`;
@@ -529,6 +558,33 @@ export default function NecesarTurtha() {
                 {expanded[key] && (
                   <div>
                     <ProductBreakdown groupList={list} />
+                    {mode === "editabil" && (
+                      <div className="mt-2 ml-2 pl-3 space-y-1">
+                        {list.map((it) => {
+                          const pp = products.find((x) => x.id === it.productId);
+                          const step = pp?.stepQty || 1;
+                          const editable = canEditPending(it);
+                          const modifier = it.modifiedBy ? users.find((x) => x.id === it.modifiedBy) : null;
+                          return (
+                            <div key={it.id} className="flex items-center gap-2 text-xs flex-wrap">
+                              {editable ? (
+                                <>
+                                  <span className="text-stone-500">modifica:</span>
+                                  <button onClick={() => editPendingQty(it.id, -1)} className="w-6 h-6 rounded bg-stone-200 font-bold">-</button>
+                                  <span className="font-mono w-14 text-center">{it.qty} {pp?.um}</span>
+                                  <button onClick={() => editPendingQty(it.id, +1)} className="w-6 h-6 rounded bg-stone-200 font-bold">+</button>
+                                  {step > 1 && <span className="text-stone-400">pas: {step}</span>}
+                                  <button onClick={() => deletePendingItem(it.id)} className="ml-1 px-2 h-6 rounded bg-red-100 text-red-700 font-semibold">sterge</button>
+                                </>
+                              ) : (
+                                <span className="text-stone-400">blocat (trimis spre aprobare)</span>
+                              )}
+                              {modifier && <span className="text-[10px] text-stone-400 w-full">modificat de {modifier.name} la {fmtDate(it.modifiedAt)}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     {mode === "aprobare" && isApprover && (
                       <div className="mt-2 ml-2 pl-3 space-y-1">
                         {list.map((it) => {
@@ -827,7 +883,7 @@ export default function NecesarTurtha() {
             {allPendingGroups.length > 0 && !isApprover && (
               <div className="mt-4">
                 <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">In asteptarea aprobarii</div>
-                {allPendingGroups.map((g) => <OrderCard key={`p-${g.loc}-${g.sup}`} group={g} mode="vizualizare" />)}
+                {allPendingGroups.map((g) => <OrderCard key={`p-${g.loc}-${g.sup}`} group={g} mode="editabil" />)}
               </div>
             )}
           </div>
