@@ -600,6 +600,16 @@ export default function NecesarTurtha() {
   const cats = useMemo(() => ["Toate", ...Array.from(new Set(myProducts.map((p) => p.cat)))], [products, activeDept, currentUserId]);
   const mySuppliers = Array.from(new Set(myProducts.map((p) => p.sup)));
   const myUms = Array.from(new Set(myProducts.map((p) => p.um)));
+  const freqCount = {};
+  items.forEach((it) => {
+    if (me && (it.userId === me.id || (it.loc === activeLoc && it.dept === activeDept))) {
+      freqCount[it.productId] = (freqCount[it.productId] || 0) + 1;
+    }
+  });
+  const frequentProducts = myProducts
+    .filter((p) => freqCount[p.id])
+    .sort((a, b) => freqCount[b.id] - freqCount[a.id])
+    .slice(0, 8);
   const visibleProducts = myProducts.filter((p) =>
     (catFilter === "Toate" || p.cat === catFilter) &&
     (supFilter === "toti" || p.sup === supFilter) &&
@@ -952,6 +962,19 @@ export default function NecesarTurtha() {
                   className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${catFilter === c ? "bg-stone-900 text-white" : "bg-white border border-stone-300 text-stone-600"}`}>{c}</button>
               ))}
             </div>
+            {search === "" && frequentProducts.length > 0 && (
+              <div className="mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold mb-1.5">Produse folosite des</div>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {frequentProducts.map((p) => (
+                    <button key={p.id} onClick={() => setCart((c) => { const cur = c[p.id] || 0; return { ...c, [p.id]: cur === 0 ? (p.minQty || p.stepQty || 1) : cur + (p.stepQty || 1) }; })}
+                      className="shrink-0 px-3 py-1.5 rounded-full bg-white border border-stone-300 text-xs text-stone-700 font-medium whitespace-nowrap">
+                      + {p.name}{cart[p.id] > 0 ? ` (${cart[p.id]})` : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               {visibleProducts.map((p) => {
                 const sup = suppliers.find((s) => s.id === p.sup);
