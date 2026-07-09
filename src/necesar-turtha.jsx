@@ -175,6 +175,7 @@ export default function NecesarTurtha() {
   const [deliveryDate, setDeliveryDate] = useState("");
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("Toate");
+  const [supFilter, setSupFilter] = useState("toti");
   const [expanded, setExpanded] = useState({});
   const [toast, setToast] = useState(null);
   const [adminView, setAdminView] = useState("utilizatori");
@@ -494,8 +495,11 @@ export default function NecesarTurtha() {
 
   const myProducts = me ? products.filter((p) => !p.pending && p.depts.includes(activeDept)) : [];
   const cats = useMemo(() => ["Toate", ...Array.from(new Set(myProducts.map((p) => p.cat)))], [products, activeDept, currentUserId]);
+  const mySuppliers = Array.from(new Set(myProducts.map((p) => p.sup)));
   const visibleProducts = myProducts.filter((p) =>
-    (catFilter === "Toate" || p.cat === catFilter) && p.name.toLowerCase().includes(search.toLowerCase())
+    (catFilter === "Toate" || p.cat === catFilter) &&
+    (supFilter === "toti" || p.sup === supFilter) &&
+    p.name.toLowerCase().includes(search.toLowerCase())
   );
 
   // ---------- COMPONENTE ----------
@@ -807,6 +811,25 @@ export default function NecesarTurtha() {
               <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)}
                 title="Data livrarii (optional)"
                 className="px-2 py-2.5 rounded-xl border border-stone-300 bg-white text-xs text-stone-600" />
+            </div>
+            <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+              <select value={supFilter} onChange={(e) => setSupFilter(e.target.value)}
+                className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white shrink-0">
+                <option value="toti">Toti furnizorii</option>
+                {mySuppliers.map((sid) => <option key={sid} value={sid}>{suppliers.find((s) => s.id === sid)?.name || sid}</option>)}
+              </select>
+              {me.depts.length > 1 && (
+                <select value={activeDept} onChange={(e) => setActiveDept(e.target.value)}
+                  className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white shrink-0">
+                  {me.depts.map((d) => <option key={d} value={d}>{deptOf(d).name}</option>)}
+                </select>
+              )}
+              {me.locs.length > 1 && (
+                <select value={activeLoc} onChange={(e) => setActiveLoc(e.target.value)}
+                  className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white shrink-0 font-mono font-bold">
+                  {me.locs.map((l) => <option key={l} value={l}>{l} - {locName(l)}</option>)}
+                </select>
+              )}
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-2 mb-1">
               {cats.map((c) => (
