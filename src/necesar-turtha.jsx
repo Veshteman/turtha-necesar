@@ -178,6 +178,7 @@ export default function NecesarTurtha() {
   const [supFilter, setSupFilter] = useState("toti");
   const [expanded, setExpanded] = useState({});
   const [toast, setToast] = useState(null);
+  const [sendModal, setSendModal] = useState(null); // { loc, supId, supName, isGroup, msg, url, groupItems, queueRest }
   const [adminView, setAdminView] = useState("utilizatori");
   const [newProd, setNewProd] = useState({ name: "", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
   const [newLoc, setNewLoc] = useState({ id: "", name: "" });
@@ -369,7 +370,8 @@ export default function NecesarTurtha() {
     showToast("Produs sters din comanda");
   };
 
-  const sendGroup = (loc, supId, groupItems) => {
+  // v10 Etapa 4: flux WhatsApp cu confirmare, tip destinatie (phone/grup), trimite toate
+  const buildOrderMsg = (loc, supId, groupItems) => {
     const sup = suppliers.find((s) => s.id === supId);
     const header = (sup.templates && sup.templates[loc]) || `Comanda Turtha ${locName(loc)}:`;
     const byProd = {};
@@ -385,12 +387,43 @@ export default function NecesarTurtha() {
     });
     const dDate = groupItems.find((it) => it.deliveryDate)?.deliveryDate;
     const dLine = dDate ? `\nLivrare dorita: ${new Date(dDate + "T12:00").toLocaleDateString("ro-RO")}` : "";
-    const msg = `${header}\n\n${lines.join("\n")}${dLine}\n\nMultumim!`;
-    const url = `https://wa.me/${sup.phone}?text=${encodeURIComponent(msg)}`;
+    return `${header}\n\n${lines.join("\n")}${dLine}\n\nMultumim!`;
+  };
+
+  const openSendModal = (loc, supId, groupItems, queueRest = []) => {
+    const sup = suppliers.find((s) => s.id === supId);
+    const msg = buildOrderMsg(loc, supId, groupItems);
+    const isGroup = sup.dest === "group";
+    const url = isGroup ? null : `https://wa.me/${sup.phone}?text=${encodeURIComponent(msg)}`;
+    setSendModal({ loc, supId, supName: sup.name, isGroup, msg, url, groupItems, queueRest });
+  };
+
+  const confirmSent = () => {
+    if (!sendModal) return;
+    const { loc, supId, supName, groupItems, queueRest } = sendModal;
     const orderRef = `${Date.now()}-${supId}-${loc}`;
     setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "trimis", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
-    window.open(url, "_blank");
-    showToast(`Comanda ${sup.name} - ${locName(loc)} trimisa`);
+    showToast(`Comanda ${supName} - ${locName(loc)} confirmata`);
+    if (queueRest && queueRest.length) {
+      const [next, ...rest] = queueRest;
+      openSendModal(next.loc, next.sup, next.items, rest);
+    } else {
+      setSendModal(null);
+    }
+  };
+
+  const cancelSend = () => { setSendModal(null); };
+
+  const copyMsg = async (msg) => {
+    try { await navigator.clipboard.writeText(msg); showToast("Mesaj copiat"); }
+    catch (e) { showToast("Nu s-a putut copia - selecteaza manual"); }
+  };
+
+  const sendAll = () => {
+    const groups = readyGroups.filter((g) => isApprover || (me && me.direct && me.locs.includes(g.loc)));
+    if (!groups.length) { showToast("Nicio comanda de trimis"); return; }
+    const [first, ...rest] = groups;
+    openSendModal(first.loc, first.sup, first.items, rest);
   };
 
   const setReception = (orderRef, productId, qty) => {
@@ -620,7 +653,7 @@ export default function NecesarTurtha() {
           )}
           {mode === "de_trimis" && (canSendThis ? (
             <div className="flex gap-2">
-              <button onClick={() => sendGroup(group.loc, group.sup, group.items)} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: "#1FAF54" }}>
+              <button onClick={() => openSendModal(group.loc, group.sup, group.items)} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: "#1FAF54" }}>
                 WhatsApp catre {sup.name}
               </button>
               <button onClick={() => printDriverSheet([group])} className="px-3 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">Print</button>
@@ -895,6 +928,12 @@ export default function NecesarTurtha() {
         {/* DE TRIMIS */}
         {tab === "comenzi" && (
           <div>
+            {readyGroups.some((g) => isApprover || (me && me.direct && me.locs.includes(g.loc))) && (
+              <button onClick={sendAll}
+                className="w-full mb-3 py-3 rounded-xl text-white font-bold text-sm" style={{ background: "#1FAF54" }}>
+                Trimite toate comenzile ({readyGroups.filter((g) => isApprover || (me && me.direct && me.locs.includes(g.loc))).length})
+              </button>
+            )}
             {readyGroups.length > 1 && (
               <button onClick={() => printDriverSheet(readyGroups)}
                 className="w-full mb-3 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-800 font-semibold text-sm">
@@ -1198,6 +1237,10 @@ export default function NecesarTurtha() {
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.pickup ? "bg-blue-100 text-blue-800" : "bg-stone-100 text-stone-400"}`}>
                         {s.pickup ? "Transport ridicare sofer" : "livrare furnizor"}
                       </button>
+                      <button onClick={() => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, dest: x.dest === "group" ? "phone" : "group" } : x))}
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.dest === "group" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
+                        {s.dest === "group" ? "grup WhatsApp (copy)" : "numar direct"}
+                      </button>
                     </div>
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Telefon WhatsApp</label>
                     <input value={s.phone} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, phone: e.target.value } : x))}
@@ -1228,6 +1271,37 @@ export default function NecesarTurtha() {
           <button onClick={submitCart} className="w-full py-3.5 rounded-xl text-white font-bold shadow-lg" style={{ background: "#22402F" }}>
             {me.direct ? `Adauga la comenzi (${cartCount} produse)` : `Trimite spre aprobare (${cartCount} produse)`}
           </button>
+        </div>
+      )}
+
+      {/* MODAL TRIMITERE WHATSAPP (v10 Etapa 4) */}
+      {sendModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-3">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
+            <div className="px-5 py-4 border-b border-stone-200">
+              <div className="font-bold text-stone-900">Trimite catre {sendModal.supName}</div>
+              <div className="text-xs text-stone-500">{locName(sendModal.loc)}{sendModal.queueRest && sendModal.queueRest.length > 0 ? ` - inca ${sendModal.queueRest.length} in coada` : ""}</div>
+            </div>
+            <div className="px-5 py-4">
+              {sendModal.isGroup ? (
+                <div>
+                  <div className="text-sm text-stone-700 mb-2">Furnizor pe grup WhatsApp. Copiaza mesajul si trimite-l manual in grupul furnizorului, apoi confirma mai jos.</div>
+                  <pre className="text-xs bg-stone-100 rounded-lg p-3 whitespace-pre-wrap break-words mb-3" style={{ fontFamily: "inherit" }}>{sendModal.msg}</pre>
+                  <button onClick={() => copyMsg(sendModal.msg)} className="w-full py-2.5 rounded-lg bg-stone-900 text-white font-semibold text-sm">Copiaza mesajul</button>
+                </div>
+              ) : (
+                <div>
+                  <div className="text-sm text-stone-700 mb-3">Comanda a fost deschisa in WhatsApp. Apasa <b>Send</b> in WhatsApp, apoi revino aici si confirma.</div>
+                  <button onClick={() => window.open(sendModal.url, "_blank")} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm mb-2" style={{ background: "#1FAF54" }}>Deschide WhatsApp</button>
+                  <button onClick={() => copyMsg(sendModal.msg)} className="w-full py-2 rounded-lg bg-stone-100 text-stone-600 font-semibold text-xs">sau copiaza mesajul</button>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-stone-200 flex gap-2">
+              <button onClick={cancelSend} className="flex-1 py-2.5 rounded-lg bg-stone-200 text-stone-700 font-semibold text-sm">Inapoi fara confirmare</button>
+              <button onClick={confirmSent} className="flex-1 py-2.5 rounded-lg bg-emerald-700 text-white font-semibold text-sm">Confirma ca am trimis</button>
+            </div>
+          </div>
         </div>
       )}
 
