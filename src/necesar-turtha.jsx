@@ -123,6 +123,23 @@ const deptOf = (id) => DEPTS.find((d) => d.id === id) || DEPTS[0];
 const fmtDate = (ts) => new Date(ts).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const fmtDay = (ts) => new Date(ts).toLocaleDateString("ro-RO");
 
+// v10 Pas H: statusuri standardizate + compatibilitate cu statusuri vechi
+const STATUS_MAP = {
+  draft: "draft",
+  in_aprobare: "pending_approval", pending_approval: "pending_approval",
+  de_trimis: "approved", approved: "approved",
+  whatsapp_opened: "whatsapp_opened",
+  trimis: "sent_confirmed", sent_confirmed: "sent_confirmed",
+  partially_received: "partially_received", received: "received", cancelled: "cancelled",
+};
+const normalizeStatus = (s) => STATUS_MAP[s] || s;
+const STATUS_LABEL = {
+  draft: "Draft", pending_approval: "In aprobare", approved: "Aprobat",
+  whatsapp_opened: "WhatsApp deschis", sent_confirmed: "Trimis",
+  partially_received: "Receptionat partial", received: "Receptionat", cancelled: "Anulat",
+};
+const statusLabel = (s) => STATUS_LABEL[normalizeStatus(s)] || s;
+
 // Cantitate valida respectand stepQty si minQty
 const validQty = (qty, p) => {
   if (!p || qty <= 0) return 0;
@@ -427,7 +444,7 @@ export default function NecesarTurtha() {
   const submitCart = () => {
     const entries = Object.entries(cart).filter(([, q]) => q > 0);
     if (!entries.length) return;
-    const status = me.direct ? "de_trimis" : "in_aprobare";
+    const status = me.direct ? "approved" : "pending_approval";
     let s = seq;
     const newItems = entries.map(([pid, qty]) => ({
       id: s++, productId: Number(pid), qty, userId: me.id, loc: activeLoc, dept: activeDept, status, ts: Date.now(),
@@ -435,12 +452,12 @@ export default function NecesarTurtha() {
     }));
     setSeq(s);
     setItems((prev) => [...prev, ...newItems]);
-    logAudit(status === "de_trimis" ? "comanda_de_trimis" : "comanda_trimisa_aprobare", "order", null, `${newItems.length} produse - ${locName(activeLoc)}`);
+    logAudit(status === "approved" ? "comanda_de_trimis" : "comanda_trimisa_aprobare", "order", null, `${newItems.length} produse - ${locName(activeLoc)}`);
     setCart({});
     setCartNotes({});
     setOrderNote("");
     setDeliveryDate("");
-    showToast(status === "de_trimis" ? "Necesar adaugat - gata de trimis" : "Necesar trimis spre aprobare");
+    showToast(status === "approved" ? "Necesar adaugat - gata de trimis" : "Necesar trimis spre aprobare");
     setTab("comenzi");
   };
 
@@ -453,8 +470,8 @@ export default function NecesarTurtha() {
   const approveGroup = (loc, sup) => {
     setItems((prev) => prev.map((it) => {
       const p = products.find((x) => x.id === it.productId);
-      if (it.status === "in_aprobare" && it.loc === loc && p && p.sup === sup && canApproveItem(it)) {
-        return { ...it, status: "de_trimis" };
+      if (it.status === "pending_approval" && it.loc === loc && p && p.sup === sup && canApproveItem(it)) {
+        return { ...it, status: "approved" };
       }
       return it;
     }));
@@ -476,7 +493,7 @@ export default function NecesarTurtha() {
   // v10 Etapa 2: editare comanda pending (doar cat timp e in_aprobare)
   // Un item poate fi editat de proprietar sau de aprobatorul lui. Audit: modifiedBy + modifiedAt.
   const canEditPending = (it) => {
-    if (it.status !== "in_aprobare") return false;
+    if (it.status !== "pending_approval") return false;
     if (!me) return false;
     if (it.userId === me.id) return true;
     return canApproveItem(it);
@@ -540,7 +557,7 @@ export default function NecesarTurtha() {
     if (!sendModal) return;
     const { loc, supId, supName, groupItems, queueRest } = sendModal;
     const orderRef = `${Date.now()}-${supId}-${loc}`;
-    setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "trimis", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
+    setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "sent_confirmed", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
     showToast(`Comanda ${supName} - ${locName(loc)} confirmata`);
     logAudit("comanda_confirmata_trimisa", "order", orderRef, `${supName} - ${locName(loc)}`);
     if (queueRest && queueRest.length) {
@@ -688,8 +705,9 @@ export default function NecesarTurtha() {
 
   // ---------- GRUPARE ----------
   const groupItems = (status, onlyMine = false) => {
+    const statuses = Array.isArray(status) ? status : [status];
     const map = {};
-    items.filter((it) => it.status === status && (!onlyMine || canApproveItem(it))).forEach((it) => {
+    items.filter((it) => statuses.includes(normalizeStatus(it.status)) && (!onlyMine || canApproveItem(it))).forEach((it) => {
       const p = products.find((x) => x.id === it.productId);
       if (!p) return;
       const key = `${it.loc}|${p.sup}`;
@@ -701,7 +719,7 @@ export default function NecesarTurtha() {
 
   // cantitate deja in comenzi deschise pentru produs, pe locatia activa
   const openQty = (productId) => items
-    .filter((it) => it.productId === productId && it.loc === activeLoc && (it.status === "in_aprobare" || it.status === "de_trimis"))
+    .filter((it) => it.productId === productId && it.loc === activeLoc && (normalizeStatus(it.status) === "pending_approval" || normalizeStatus(it.status) === "approved"))
     .reduce((a, b) => a + b.qty, 0);
 
   const myProducts = me ? products.filter((p) => !p.pending && p.depts.includes(activeDept)) : [];
@@ -844,7 +862,7 @@ export default function NecesarTurtha() {
               Aproba comanda
             </button>
           )}
-          {mode === "de_trimis" && (canSendThis ? (
+          {mode === "approved" && (canSendThis ? (
             <div className="flex gap-2">
               <button onClick={() => openSendModal(group.loc, group.sup, group.items)} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: "#1FAF54" }}>
                 WhatsApp catre {sup.name}
@@ -970,13 +988,13 @@ export default function NecesarTurtha() {
 
   // ---------- CONTINUT ----------
   const cartCount = Object.values(cart).filter((q) => q > 0).length;
-  const pendingGroups = groupItems("in_aprobare", true);
-  const allPendingGroups = groupItems("in_aprobare");
-  const readyGroups = groupItems("de_trimis");
+  const pendingGroups = groupItems("pending_approval", true);
+  const allPendingGroups = groupItems("pending_approval");
+  const readyGroups = groupItems(["approved", "whatsapp_opened"]);
 
   // istoric grupat pe comenzi (orderRef)
   const sentByOrder = {};
-  items.filter((it) => it.status === "trimis").forEach((it) => {
+  items.filter((it) => ["sent_confirmed", "partially_received", "received"].includes(normalizeStatus(it.status))).forEach((it) => {
     const ref = it.orderRef || `legacy-${it.id}`;
     if (!sentByOrder[ref]) sentByOrder[ref] = [];
     sentByOrder[ref].push(it);
@@ -1183,7 +1201,7 @@ export default function NecesarTurtha() {
               </button>
             )}
             {readyGroups.length === 0 && <div className="text-center text-sm text-stone-500 py-12">Nicio comanda de trimis. Adauga produse din tabul Necesar.</div>}
-            {readyGroups.map((g) => <OrderCard key={`${g.loc}-${g.sup}`} group={g} mode="de_trimis" />)}
+            {readyGroups.map((g) => <OrderCard key={`${g.loc}-${g.sup}`} group={g} mode="approved" />)}
             {allPendingGroups.length > 0 && !isApprover && (
               <div className="mt-4">
                 <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">In asteptarea aprobarii</div>
