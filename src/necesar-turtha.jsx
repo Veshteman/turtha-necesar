@@ -163,6 +163,10 @@ export default function NecesarTurtha() {
   const [items, setItems] = useState([]);
   const [receptions, setReceptions] = useState({});
   const [receptionMeta, setReceptionMeta] = useState({}); // orderRef -> { confirmedBy, receivedAt }
+  const [auditLog, setAuditLog] = useState([]);
+  const [auditFUser, setAuditFUser] = useState("toti");
+  const [auditFAction, setAuditFAction] = useState("toate");
+  const [auditFDay, setAuditFDay] = useState("");
   const [devices, setDevices] = useState({}); // hash(deviceToken) -> userId // orderRef -> { productId: recQty }
   const [seq, setSeq] = useState(1);
   const [loaded, setLoaded] = useState(false);
@@ -262,6 +266,15 @@ export default function NecesarTurtha() {
     return () => clearInterval(id);
   }, []);
 
+  // v10 Pas F: audit log pe cheie separata turtha-audit
+  const loadAudit = async () => {
+    try {
+      const { data } = await supabase.from("store").select("value").eq("key", "turtha-audit").single();
+      if (data && data.value && Array.isArray(data.value.log)) setAuditLog(data.value.log);
+    } catch (e) {}
+  };
+  useEffect(() => { loadAudit(); }, []);
+
   const me = users.find((u) => u.id === currentUserId);
   const isApprover = me && (me.role === "aprobator" || me.role === "admin");
   const isAdmin = me && me.role === "admin";
@@ -287,6 +300,7 @@ export default function NecesarTurtha() {
     if (!draft) return;
     setUsers(draft.users); setProducts(draft.products); setSuppliers(draft.suppliers); setLocations(draft.locations);
     setDraft(null); showToast("Modificari salvate");
+    logAudit("admin_salvat", "admin", null, "modificari salvate");
   };
   const discardAdmin = () => { setDraft(null); showToast("Modificari anulate"); };
   const leaveAdminGuard = (action) => {
@@ -296,6 +310,19 @@ export default function NecesarTurtha() {
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  const logAudit = async (action, entity, entityId, details, actor) => {
+    const who = actor || me;
+    if (!who) return;
+    const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ts: Date.now(), userId: who.id, userName: who.name, loc: activeLoc || null, action, entity: entity || null, entityId: entityId != null ? entityId : null, details: details || "" };
+    setAuditLog((prev) => [entry, ...prev].slice(0, 2000));
+    try {
+      const { data } = await supabase.from("store").select("value").eq("key", "turtha-audit").single();
+      const cur = (data && data.value && Array.isArray(data.value.log)) ? data.value.log : [];
+      const next = [entry, ...cur].slice(0, 2000);
+      await supabase.from("store").upsert({ key: "turtha-audit", value: { log: next }, updated_at: new Date().toISOString() });
+    } catch (e) { /* audit best-effort */ }
+  };
 
   // ---------- LOGIN (doar PIN, fara lista de utilizatori) ----------
   const tryLogin = async (pinArg) => {
@@ -313,6 +340,7 @@ export default function NecesarTurtha() {
     } catch (e) {}
     const u = users.find((x) => !x.pending && x.pin === code);
     if (!u) {
+      logAudit("login_gresit", "user", null, "PIN gresit", { id: 0, name: "necunoscut" });
       try {
         const fails = Number(localStorage.getItem("turtha-login-fails") || 0) + 1;
         if (fails >= 5) {
@@ -342,6 +370,7 @@ export default function NecesarTurtha() {
       }
     } catch (e) { /* browser vechi - loginul continua */ }
     try { localStorage.setItem("turtha-login-fails", "0"); localStorage.removeItem("turtha-login-lockuntil"); } catch (e) {}
+    logAudit("login_reusit", "user", u.id, "", u);
     setCurrentUserId(u.id);
     setActiveLoc(u.locs[0]);
     setActiveDept(u.depts[0]);
@@ -363,6 +392,7 @@ export default function NecesarTurtha() {
     }));
     setSeq(s);
     setItems((prev) => [...prev, ...newItems]);
+    logAudit(status === "de_trimis" ? "comanda_de_trimis" : "comanda_trimisa_aprobare", "order", null, `${newItems.length} produse - ${locName(activeLoc)}`);
     setCart({});
     setCartNotes({});
     setOrderNote("");
@@ -385,6 +415,7 @@ export default function NecesarTurtha() {
       }
       return it;
     }));
+    logAudit("comanda_aprobata", "order", null, `${locName(loc)} - ${suppliers.find((x) => x.id === sup)?.name || sup}`);
     showToast("Aprobat - mutat la De trimis");
   };
 
@@ -418,6 +449,7 @@ export default function NecesarTurtha() {
       if (newQty <= 0) return null;
       return { ...it, qty: validQty(newQty, p) || step, modifiedBy: me.id, modifiedAt: Date.now() };
     }).filter(Boolean));
+    logAudit("cantitate_modificata", "order_line", itemId, "");
   };
 
   const deletePendingItem = (itemId) => {
@@ -426,6 +458,7 @@ export default function NecesarTurtha() {
       if (it.id !== itemId) return true;
       return !canEditPending(it);
     }));
+    logAudit("produs_sters_comanda", "order_line", itemId, "");
     showToast("Produs sters din comanda");
   };
 
@@ -466,6 +499,7 @@ export default function NecesarTurtha() {
     const orderRef = `${Date.now()}-${supId}-${loc}`;
     setItems((prev) => prev.map((it) => (groupItems.some((g) => g.id === it.id) ? { ...it, status: "trimis", sentTs: Date.now(), sentBy: me.id, orderRef } : it)));
     showToast(`Comanda ${supName} - ${locName(loc)} confirmata`);
+    logAudit("comanda_confirmata_trimisa", "order", orderRef, `${supName} - ${locName(loc)}`);
     if (queueRest && queueRest.length) {
       const [next, ...rest] = queueRest;
       openSendModal(next.loc, next.sup, next.items, rest, sendModal.batch);
@@ -516,6 +550,7 @@ export default function NecesarTurtha() {
   const confirmReception = (orderRef) => {
     setReceptionMeta((prev) => ({ ...prev, [orderRef]: { confirmedBy: me.id, receivedAt: Date.now() } }));
     showToast("Receptie confirmata");
+    logAudit("receptie_confirmata", "order", orderRef, "");
   };
 
   // ---------- FOAIE SOFER (printabil A4) ----------
@@ -568,6 +603,7 @@ export default function NecesarTurtha() {
     if (!prodData.packLabel) delete prodData.packLabel;
     setDProducts((ps) => [...ps, { ...prodData, id: Math.max(0, ...ps.map((p) => p.id)) + 1, pending, proposedBy: me.id }]);
     setNewProd({ name: "", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
+    logAudit("produs_adaugat", "product", null, newProd.name);
     showToast(pending ? "Propunere trimisa adminului (nesalvat)" : "Produs adaugat (nesalvat)");
   };
 
@@ -603,6 +639,7 @@ export default function NecesarTurtha() {
     if (dSuppliers.some((x) => x.id === id)) { showToast("Exista deja un furnizor cu nume similar"); return; }
     setDSuppliers((ss) => [...ss, { id, name: newSup.name.trim(), phone: newSup.phone.trim(), days: newSup.days.trim(), pickup: newSup.pickup, dest: newSup.dest, active: true, templates: {} }]);
     setNewSup({ name: "", phone: "", days: "", pickup: false, dest: "phone" });
+    logAudit("furnizor_adaugat", "supplier", id, newSup.name);
     showToast("Furnizor adaugat (nesalvat)");
   };
 
@@ -930,7 +967,7 @@ export default function NecesarTurtha() {
   ];
 
   const approverOptions = users.filter((u) => !u.pending && (u.role === "aprobator" || u.role === "admin"));
-  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locatii", "furnizori"] : isApprover ? ["utilizatori", "nomenclator", "locatii"] : ["utilizatori"];
+  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locatii", "furnizori", "jurnal"] : isApprover ? ["utilizatori", "nomenclator", "locatii"] : ["utilizatori"];
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "#EFF1EC", fontFamily: "ui-sans-serif, system-ui" }}>
@@ -1236,6 +1273,7 @@ export default function NecesarTurtha() {
                           <button onClick={() => {
                             if (!window.confirm(`Resetezi dispozitivul pentru ${u.name}?`)) return;
                             setDevices((prev) => Object.fromEntries(Object.entries(prev).filter(([, uid]) => uid !== u.id)));
+                            logAudit("device_resetat", "user", u.id, u.name);
                             showToast(`Dispozitiv resetat pentru ${u.name}`);
                           }}
                             disabled={!Object.values(devices).includes(u.id)}
@@ -1455,6 +1493,35 @@ export default function NecesarTurtha() {
                 ))}
               </div>
             )}
+
+            {adminView === "jurnal" && isAdmin && (
+              <div>
+                <div className="flex gap-2 mb-3 flex-wrap">
+                  <select value={auditFUser} onChange={(e) => setAuditFUser(e.target.value)} className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white">
+                    <option value="toti">Toti userii</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                  <select value={auditFAction} onChange={(e) => setAuditFAction(e.target.value)} className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white">
+                    <option value="toate">Toate actiunile</option>
+                    {Array.from(new Set(auditLog.map((a) => a.action))).map((ac) => <option key={ac} value={ac}>{ac}</option>)}
+                  </select>
+                  <input type="date" value={auditFDay} onChange={(e) => setAuditFDay(e.target.value)} className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white text-stone-600" />
+                  <button onClick={loadAudit} className="text-xs px-3 py-2 rounded-lg bg-stone-200 text-stone-700 font-semibold">Reincarca</button>
+                </div>
+                <div className="space-y-1">
+                  {auditLog.filter((a) => (auditFUser === "toti" || String(a.userId) === auditFUser) && (auditFAction === "toate" || a.action === auditFAction) && (!auditFDay || fmtDay(a.ts) === fmtDay(new Date(auditFDay + "T12:00").getTime()))).slice(0, 300).map((a) => (
+                    <div key={a.id} className="bg-white rounded-lg border border-stone-200 px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-stone-800">{a.action}</span>
+                        <span className="text-stone-400">{fmtDate(a.ts)}</span>
+                      </div>
+                      <div className="text-stone-500">{a.userName}{a.loc ? ` - ${a.loc}` : ""}{a.details ? ` - ${a.details}` : ""}</div>
+                    </div>
+                  ))}
+                  {auditLog.length === 0 && <div className="text-center text-sm text-stone-500 py-8">Niciun eveniment inregistrat inca.</div>}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1487,7 +1554,7 @@ export default function NecesarTurtha() {
               ) : (
                 <div>
                   <div className="text-sm text-stone-700 mb-3">Comanda a fost deschisa in WhatsApp. Apasa <b>Send</b> in WhatsApp, apoi revino aici si confirma.</div>
-                  <button onClick={() => window.open(sendModal.url, "_blank")} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm mb-2" style={{ background: "#1FAF54" }}>Deschide WhatsApp</button>
+                  <button onClick={() => { logAudit("whatsapp_deschis", "order", null, sendModal.supName); window.open(sendModal.url, "_blank"); }} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm mb-2" style={{ background: "#1FAF54" }}>Deschide WhatsApp</button>
                   <button onClick={() => copyMsg(sendModal.msg)} className="w-full py-2 rounded-lg bg-stone-100 text-stone-600 font-semibold text-xs">sau copiaza mesajul</button>
                 </div>
               )}
