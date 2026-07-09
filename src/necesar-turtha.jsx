@@ -186,6 +186,7 @@ export default function NecesarTurtha() {
   const [histSup, setHistSup] = useState("toti");
   const [histSearch, setHistSearch] = useState("");
   const [histDay, setHistDay] = useState("");
+  const [newSup, setNewSup] = useState({ name: "", phone: "", days: "", pickup: false, dest: "phone" });
 
   const locName = (id) => locations.find((l) => l.id === id)?.name || id;
   const activeLocations = locations.filter((l) => !l.pending);
@@ -535,6 +536,16 @@ export default function NecesarTurtha() {
     }]);
     setNewUser({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
     showToast(pending ? "Propunere trimisa adminului (nesalvat)" : "Utilizator adaugat (nesalvat)");
+  };
+
+  const addSupplier = () => {
+    if (!newSup.name.trim()) { showToast("Completeaza numele furnizorului"); return; }
+    const baseId = newSup.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const id = baseId || ("sup" + Date.now());
+    if (dSuppliers.some((x) => x.id === id)) { showToast("Exista deja un furnizor cu nume similar"); return; }
+    setDSuppliers((ss) => [...ss, { id, name: newSup.name.trim(), phone: newSup.phone.trim(), days: newSup.days.trim(), pickup: newSup.pickup, dest: newSup.dest, active: true, templates: {} }]);
+    setNewSup({ name: "", phone: "", days: "", pickup: false, dest: "phone" });
+    showToast("Furnizor adaugat (nesalvat)");
   };
 
   // ---------- GRUPARE ----------
@@ -1265,6 +1276,26 @@ export default function NecesarTurtha() {
 
             {adminView === "furnizori" && isAdmin && (
               <div className="space-y-3">
+                <div className="bg-white rounded-xl border border-stone-200 p-3">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Adauga furnizor</div>
+                  <div className="flex gap-2 mb-2">
+                    <input value={newSup.name} onChange={(e) => setNewSup({ ...newSup, name: e.target.value })} placeholder="Nume furnizor"
+                      className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm min-w-0" />
+                    <input value={newSup.phone} onChange={(e) => setNewSup({ ...newSup, phone: e.target.value.replace(/[^0-9]/g, "") })} placeholder="Telefon (40...)"
+                      className="w-36 px-2 py-2 rounded-lg border border-stone-300 text-sm font-mono" />
+                  </div>
+                  <input value={newSup.days} onChange={(e) => setNewSup({ ...newSup, days: e.target.value })} placeholder="Zile comanda / note"
+                    className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <button onClick={() => setNewSup({ ...newSup, dest: newSup.dest === "group" ? "phone" : "group" })}
+                      className={`text-[11px] px-2 py-1 rounded-lg font-semibold ${newSup.dest === "group" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
+                      {newSup.dest === "group" ? "grup WhatsApp (copy)" : "numar direct"}</button>
+                    <button onClick={() => setNewSup({ ...newSup, pickup: !newSup.pickup })}
+                      className={`text-[11px] px-2 py-1 rounded-lg font-semibold ${newSup.pickup ? "bg-blue-100 text-blue-800" : "bg-stone-100 text-stone-500"}`}>
+                      {newSup.pickup ? "ridicare sofer" : "livrare furnizor"}</button>
+                  </div>
+                  <button onClick={addSupplier} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">Adauga furnizor</button>
+                </div>
                 {dSuppliers.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl border border-stone-200 p-3">
                     <div className="font-semibold text-stone-900 mb-1 flex items-center gap-2">
@@ -1276,6 +1307,10 @@ export default function NecesarTurtha() {
                       <button onClick={() => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, dest: x.dest === "group" ? "phone" : "group" } : x))}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.dest === "group" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
                         {s.dest === "group" ? "grup WhatsApp (copy)" : "numar direct"}
+                      </button>
+                      <button onClick={() => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, active: x.active === false ? true : false } : x))}
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.active === false ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-800"}`}>
+                        {s.active === false ? "inactiv" : "activ"}
                       </button>
                     </div>
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Telefon WhatsApp</label>
