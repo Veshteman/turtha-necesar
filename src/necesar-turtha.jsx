@@ -259,6 +259,35 @@ export default function NecesarTurtha() {
   const isApprover = me && (me.role === "aprobator" || me.role === "admin");
   const isAdmin = me && me.role === "admin";
 
+  // v10 Etapa 5: draft complet pentru Admin (Salveaza/Renunta)
+  const [draft, setDraft] = useState(null); // { users, products, suppliers, locations } sau null
+  const adminDirty = draft !== null;
+  const dUsers = draft ? draft.users : users;
+  const dProducts = draft ? draft.products : products;
+  const dSuppliers = draft ? draft.suppliers : suppliers;
+  const dLocations = draft ? draft.locations : locations;
+  const dActiveLocations = dLocations.filter((l) => !l.pending);
+  const ensureDraft = (fn) => setDraft((prev) => {
+    const base = prev || { users, products, suppliers, locations };
+    return fn(base);
+  });
+  const applyUpd = (upd, cur) => (typeof upd === "function" ? upd(cur) : upd);
+  const setDUsers = (upd) => ensureDraft((b) => ({ ...b, users: applyUpd(upd, b.users) }));
+  const setDProducts = (upd) => ensureDraft((b) => ({ ...b, products: applyUpd(upd, b.products) }));
+  const setDSuppliers = (upd) => ensureDraft((b) => ({ ...b, suppliers: applyUpd(upd, b.suppliers) }));
+  const setDLocations = (upd) => ensureDraft((b) => ({ ...b, locations: applyUpd(upd, b.locations) }));
+  const saveAdmin = () => {
+    if (!draft) return;
+    setUsers(draft.users); setProducts(draft.products); setSuppliers(draft.suppliers); setLocations(draft.locations);
+    setDraft(null); showToast("Modificari salvate");
+  };
+  const discardAdmin = () => { setDraft(null); showToast("Modificari anulate"); };
+  const leaveAdminGuard = (action) => {
+    if (adminDirty) {
+      if (window.confirm("Ai modificari nesalvate in Admin. Renunti la ele?")) { setDraft(null); action(); }
+    } else { action(); }
+  };
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
   // ---------- LOGIN (doar PIN, fara lista de utilizatori) ----------
@@ -478,34 +507,34 @@ export default function NecesarTurtha() {
     if (!prodData.stepQty) delete prodData.stepQty;
     if (!prodData.minQty) delete prodData.minQty;
     if (!prodData.packLabel) delete prodData.packLabel;
-    setProducts((ps) => [...ps, { ...prodData, id: Math.max(0, ...ps.map((p) => p.id)) + 1, pending, proposedBy: me.id }]);
+    setDProducts((ps) => [...ps, { ...prodData, id: Math.max(0, ...ps.map((p) => p.id)) + 1, pending, proposedBy: me.id }]);
     setNewProd({ name: "", cat: "Bacanie", um: "kg", sup: "metro", depts: ["buc"], stepQty: "", minQty: "", packLabel: "" });
-    showToast(pending ? "Propunere trimisa adminului" : "Produs adaugat");
+    showToast(pending ? "Propunere trimisa adminului (nesalvat)" : "Produs adaugat (nesalvat)");
   };
 
   const addLocation = () => {
     const id = newLoc.id.trim(); const name = newLoc.name.trim();
     if (!id || !name) { showToast("Completeaza codul si numele"); return; }
-    if (locations.some((l) => l.id === id)) { showToast("Codul exista deja"); return; }
+    if (dLocations.some((l) => l.id === id)) { showToast("Codul exista deja"); return; }
     const pending = !isAdmin;
-    setLocations((ls) => [...ls, { id, name, pending }]);
+    setDLocations((ls) => [...ls, { id, name, pending }]);
     setNewLoc({ id: "", name: "" });
-    showToast(pending ? "Propunere trimisa adminului" : "Locatie adaugata");
+    showToast(pending ? "Propunere trimisa adminului (nesalvat)" : "Locatie adaugata (nesalvat)");
   };
 
   const addUser = () => {
     if (!newUser.name.trim()) { showToast("Completeaza numele"); return; }
     if (!/^\d{4}$/.test(newUser.pin)) { showToast("PIN-ul trebuie sa aiba 4 cifre"); return; }
-    if (users.some((u) => u.pin === newUser.pin)) { showToast("PIN-ul exista deja - alege altul"); return; }
+    if (dUsers.some((u) => u.pin === newUser.pin)) { showToast("PIN-ul exista deja - alege altul"); return; }
     if (!newUser.locs.length) { showToast("Bifeaza cel putin o locatie"); return; }
     if (!newUser.depts.length) { showToast("Bifeaza cel putin un departament"); return; }
     const pending = !(isAdmin || me.canAddUsers);
-    setUsers((us) => [...us, {
+    setDUsers((us) => [...us, {
       ...newUser, id: Math.max(0, ...us.map((u) => u.id)) + 1, role: "angajat", direct: false, canAddUsers: false,
       approverId: newUser.approverId || (isAdmin ? null : me.id), pending,
     }]);
     setNewUser({ name: "", pin: "", depts: ["buc"], locs: [], approverId: null });
-    showToast(pending ? "Propunere trimisa adminului" : "Utilizator adaugat - poate intra cu PIN-ul lui");
+    showToast(pending ? "Propunere trimisa adminului (nesalvat)" : "Utilizator adaugat (nesalvat)");
   };
 
   // ---------- GRUPARE ----------
@@ -822,11 +851,11 @@ export default function NecesarTurtha() {
               )}
             </div>
           </div>
-          <button onClick={logout} className="text-emerald-200 text-xs underline">iesi</button>
+          <button onClick={() => leaveAdminGuard(logout)} className="text-emerald-200 text-xs underline">iesi</button>
         </div>
         <div className="flex gap-1.5 mt-3 overflow-x-auto -mx-1 px-1">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => leaveAdminGuard(() => setTab(t.id))}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === t.id ? "bg-white text-stone-900" : "bg-white/15 text-emerald-50"}`}>
               {t.label}
             </button>
@@ -981,6 +1010,13 @@ export default function NecesarTurtha() {
         {/* ADMIN / GESTIUNE */}
         {tab === "admin" && (isApprover || me.canAddUsers) && (
           <div>
+            {adminDirty && (
+              <div className="sticky top-16 z-10 bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 mb-3 flex items-center gap-2 shadow-sm">
+                <span className="text-xs text-amber-800 font-semibold flex-1">Ai modificari nesalvate</span>
+                <button onClick={discardAdmin} className="text-xs px-3 py-1.5 rounded-lg bg-stone-200 text-stone-700 font-semibold">Renunta</button>
+                <button onClick={saveAdmin} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-semibold">Salveaza</button>
+              </div>
+            )}
             <div className="flex gap-1.5 mb-3 overflow-x-auto">
               {adminViews.map((v) => (
                 <button key={v} onClick={() => setAdminView(v)}
@@ -1008,7 +1044,7 @@ export default function NecesarTurtha() {
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mb-2">
                     <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locatii:</span>
-                    {activeLocations.map((l) => (
+                    {dActiveLocations.map((l) => (
                       <button key={l.id} onClick={() => setNewUser((nu) => ({ ...nu, locs: nu.locs.includes(l.id) ? nu.locs.filter((x) => x !== l.id) : [...nu.locs, l.id] }))}
                         className={`text-xs px-2 py-1 rounded-lg font-mono font-bold ${newUser.locs.includes(l.id) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"}`}>{l.id}</button>
                     ))}
@@ -1022,7 +1058,7 @@ export default function NecesarTurtha() {
                     {(isAdmin || me.canAddUsers) ? "Adauga" : "Propune adminului"}
                   </button>
                 </div>
-                {users.map((u) => (
+                {dUsers.map((u) => (
                   <div key={u.id} className={`bg-white rounded-xl border p-3 ${u.pending ? "border-amber-400" : "border-stone-200"}`}>
                     <div className="flex items-center justify-between">
                       <div className="font-semibold text-stone-900 flex items-center gap-2">
@@ -1036,31 +1072,31 @@ export default function NecesarTurtha() {
                     </div>
                     {u.pending && isAdmin && (
                       <div className="flex gap-2 mt-2">
-                        <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, pending: false } : x))}
+                        <button onClick={() => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, pending: false } : x))}
                           className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
-                        <button onClick={() => setUsers((us) => us.filter((x) => x.id !== u.id))}
+                        <button onClick={() => setDUsers((us) => us.filter((x) => x.id !== u.id))}
                           className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                       </div>
                     )}
                     {isAdmin && !u.pending && (
                       <div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <select value={u.role} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x))}
+                          <select value={u.role} onChange={(e) => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x))}
                             className="text-xs border border-stone-300 rounded-lg px-2 py-1.5 bg-white">
                             <option value="angajat">Angajat</option>
                             <option value="aprobator">Aprobator</option>
                             <option value="admin">Admin</option>
                           </select>
-                          <select value={u.approverId || ""} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, approverId: Number(e.target.value) || null } : x))}
+                          <select value={u.approverId || ""} onChange={(e) => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, approverId: Number(e.target.value) || null } : x))}
                             className="text-xs border border-stone-300 rounded-lg px-2 py-1.5 bg-white">
                             <option value="">Fara aprobator</option>
                             {approverOptions.filter((a) => a.id !== u.id).map((a) => <option key={a.id} value={a.id}>catre {a.name}</option>)}
                           </select>
-                          <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, direct: !x.direct } : x))}
+                          <button onClick={() => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, direct: !x.direct } : x))}
                             className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.direct ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
                             {u.direct ? "OK Trimite direct" : "Necesita aprobare"}
                           </button>
-                          <button onClick={() => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, canAddUsers: !x.canAddUsers } : x))}
+                          <button onClick={() => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, canAddUsers: !x.canAddUsers } : x))}
                             className={`text-xs px-2 py-1.5 rounded-lg font-semibold ${u.canAddUsers ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
                             {u.canAddUsers ? "OK Adauga utilizatori" : "Nu adauga utilizatori"}
                           </button>
@@ -1076,7 +1112,7 @@ export default function NecesarTurtha() {
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                           <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Dept:</span>
                           {DEPTS.map((d) => (
-                            <button key={d.id} onClick={() => setUsers((us) => us.map((x) => {
+                            <button key={d.id} onClick={() => setDUsers((us) => us.map((x) => {
                               if (x.id !== u.id) return x;
                               const has = x.depts.includes(d.id);
                               if (has && x.depts.length === 1) return x;
@@ -1087,8 +1123,8 @@ export default function NecesarTurtha() {
                         </div>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                           <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Locatii:</span>
-                          {activeLocations.map((l) => (
-                            <button key={l.id} onClick={() => setUsers((us) => us.map((x) => {
+                          {dActiveLocations.map((l) => (
+                            <button key={l.id} onClick={() => setDUsers((us) => us.map((x) => {
                               if (x.id !== u.id) return x;
                               const has = x.locs.includes(l.id);
                               if (has && x.locs.length === 1) return x;
@@ -1097,7 +1133,7 @@ export default function NecesarTurtha() {
                               className={`text-xs px-2 py-1 rounded-lg font-mono font-bold ${u.locs.includes(l.id) ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-400"}`}>{l.id}</button>
                           ))}
                           <span className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold ml-2">PIN:</span>
-                          <input value={u.pin} onChange={(e) => setUsers((us) => us.map((x) => x.id === u.id ? { ...x, pin: e.target.value.replace(/\D/g, "").slice(0, 4) } : x))}
+                          <input value={u.pin} onChange={(e) => setDUsers((us) => us.map((x) => x.id === u.id ? { ...x, pin: e.target.value.replace(/\D/g, "").slice(0, 4) } : x))}
                             className="w-16 px-2 py-1 rounded-lg border border-stone-300 text-xs font-mono text-center" />
                         </div>
                       </div>
@@ -1120,7 +1156,7 @@ export default function NecesarTurtha() {
                       className="w-16 px-2 py-2 rounded-lg border border-stone-300 text-sm" />
                     <select value={newProd.sup} onChange={(e) => setNewProd({ ...newProd, sup: e.target.value })}
                       className="px-2 py-2 rounded-lg border border-stone-300 text-sm bg-white">
-                      {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {dSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mb-2">
@@ -1152,7 +1188,7 @@ export default function NecesarTurtha() {
                   </button>
                 </div>
                 <div className="space-y-1">
-                  {products.map((p) => (
+                  {dProducts.map((p) => (
                     <div key={p.id} className={`bg-white rounded-lg border px-3 py-2 ${p.pending ? "border-amber-400" : "border-stone-200"}`}>
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 pr-2">
@@ -1160,17 +1196,17 @@ export default function NecesarTurtha() {
                             {p.name}
                             {p.pending && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">asteapta admin</span>}
                           </div>
-                          <div className="text-xs text-stone-500">{suppliers.find((s) => s.id === p.sup)?.name} - {p.cat} - {p.um} - {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
+                          <div className="text-xs text-stone-500">{dSuppliers.find((s) => s.id === p.sup)?.name} - {p.cat} - {p.um} - {(p.depts || ALLD).map((d) => deptOf(d).name).join(", ")}</div>
                         </div>
                         {isAdmin && !p.pending && (
-                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">sterge</button>
+                          <button onClick={() => setDProducts((ps) => ps.filter((x) => x.id !== p.id))} className="text-xs text-red-500 shrink-0">sterge</button>
                         )}
                       </div>
                       {p.pending && isAdmin && (
                         <div className="flex gap-2 mt-2">
-                          <button onClick={() => setProducts((ps) => ps.map((x) => x.id === p.id ? { ...x, pending: false } : x))}
+                          <button onClick={() => setDProducts((ps) => ps.map((x) => x.id === p.id ? { ...x, pending: false } : x))}
                             className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
-                          <button onClick={() => setProducts((ps) => ps.filter((x) => x.id !== p.id))}
+                          <button onClick={() => setDProducts((ps) => ps.filter((x) => x.id !== p.id))}
                             className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                         </div>
                       )}
@@ -1196,8 +1232,8 @@ export default function NecesarTurtha() {
                   <div className="text-[11px] text-stone-400 mt-2">Poate fi si o zona interna sau un client B2B: Productie Patiserie, Cafenea X etc.</div>
                 </div>
                 <div className="space-y-1">
-                  {locations.map((l) => {
-                    const inUse = users.some((u) => u.locs.includes(l.id));
+                  {dLocations.map((l) => {
+                    const inUse = dUsers.some((u) => u.locs.includes(l.id));
                     return (
                       <div key={l.id} className={`bg-white rounded-lg border px-3 py-2.5 ${l.pending ? "border-amber-400" : "border-stone-200"}`}>
                         <div className="flex items-center justify-between">
@@ -1209,14 +1245,14 @@ export default function NecesarTurtha() {
                           {isAdmin && !l.pending && (inUse ? (
                             <span className="text-[11px] text-stone-400">are utilizatori - muta-i intai</span>
                           ) : (
-                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">sterge</button>
+                            <button onClick={() => setDLocations((ls) => ls.filter((x) => x.id !== l.id))} className="text-xs text-red-500">sterge</button>
                           ))}
                         </div>
                         {l.pending && isAdmin && (
                           <div className="flex gap-2 mt-2">
-                            <button onClick={() => setLocations((ls) => ls.map((x) => x.id === l.id ? { ...x, pending: false } : x))}
+                            <button onClick={() => setDLocations((ls) => ls.map((x) => x.id === l.id ? { ...x, pending: false } : x))}
                               className="flex-1 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-semibold">Aproba</button>
-                            <button onClick={() => setLocations((ls) => ls.filter((x) => x.id !== l.id))}
+                            <button onClick={() => setDLocations((ls) => ls.filter((x) => x.id !== l.id))}
                               className="flex-1 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-xs font-semibold">Respinge</button>
                           </div>
                         )}
@@ -1229,31 +1265,31 @@ export default function NecesarTurtha() {
 
             {adminView === "furnizori" && isAdmin && (
               <div className="space-y-3">
-                {suppliers.map((s) => (
+                {dSuppliers.map((s) => (
                   <div key={s.id} className="bg-white rounded-xl border border-stone-200 p-3">
                     <div className="font-semibold text-stone-900 mb-1 flex items-center gap-2">
                       {s.name}
-                      <button onClick={() => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, pickup: !x.pickup } : x))}
+                      <button onClick={() => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, pickup: !x.pickup } : x))}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.pickup ? "bg-blue-100 text-blue-800" : "bg-stone-100 text-stone-400"}`}>
                         {s.pickup ? "Transport ridicare sofer" : "livrare furnizor"}
                       </button>
-                      <button onClick={() => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, dest: x.dest === "group" ? "phone" : "group" } : x))}
+                      <button onClick={() => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, dest: x.dest === "group" ? "phone" : "group" } : x))}
                         className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${s.dest === "group" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"}`}>
                         {s.dest === "group" ? "grup WhatsApp (copy)" : "numar direct"}
                       </button>
                     </div>
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Telefon WhatsApp</label>
-                    <input value={s.phone} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, phone: e.target.value } : x))}
+                    <input value={s.phone} onChange={(e) => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, phone: e.target.value } : x))}
                       className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono mb-2" />
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Note (zile comanda/livrare)</label>
-                    <input value={s.days} onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, days: e.target.value } : x))}
+                    <input value={s.days} onChange={(e) => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, days: e.target.value } : x))}
                       className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mb-2" />
                     <label className="text-[10px] uppercase tracking-wider text-stone-400 font-semibold">Mesaj per locatie (antet comanda)</label>
-                    {activeLocations.map((l) => (
+                    {dActiveLocations.map((l) => (
                       <div key={l.id} className="flex items-center gap-2 mt-1.5">
                         <Badge loc={l.id} />
                         <input value={(s.templates && s.templates[l.id]) || ""}
-                          onChange={(e) => setSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, templates: { ...x.templates, [l.id]: e.target.value } } : x))}
+                          onChange={(e) => setDSuppliers((ss) => ss.map((x) => x.id === s.id ? { ...x, templates: { ...x.templates, [l.id]: e.target.value } } : x))}
                           className="flex-1 px-2 py-1.5 rounded-lg border border-stone-300 text-xs min-w-0" />
                       </div>
                     ))}
