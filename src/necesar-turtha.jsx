@@ -167,6 +167,7 @@ export default function NecesarTurtha() {
   const [auditFUser, setAuditFUser] = useState("toti");
   const [auditFAction, setAuditFAction] = useState("toate");
   const [auditFDay, setAuditFDay] = useState("");
+  const [exportDay, setExportDay] = useState("");
   const [devices, setDevices] = useState({}); // hash(deviceToken) -> userId // orderRef -> { productId: recQty }
   const [seq, setSeq] = useState(1);
   const [loaded, setLoaded] = useState(false);
@@ -322,6 +323,48 @@ export default function NecesarTurtha() {
       const next = [entry, ...cur].slice(0, 2000);
       await supabase.from("store").upsert({ key: "turtha-audit", value: { log: next }, updated_at: new Date().toISOString() });
     } catch (e) { /* audit best-effort */ }
+  };
+
+  // v10 Pas G: export CSV / backup JSON
+  const csvEsc = (v) => { const t = v == null ? "" : String(v); return `"` + t.replace(/"/g, `""`) + `"`; };
+  const downloadFile = (filename, content, mime) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const dateStamp = () => new Date().toISOString().slice(0, 10);
+  const exportOrdersCSV = () => {
+    const rows = [["Data","Locatie","Departament","Furnizor","Produs","UM","Cantitate","Status","User","Obs linie","Obs comanda","Livrare dorita","Trimisa","Trimisa de"]];
+    items.filter((it) => !exportDay || fmtDay(it.ts) === fmtDay(new Date(exportDay + "T12:00").getTime())).forEach((it) => {
+      const p = products.find((x) => x.id === it.productId);
+      const sup = p ? suppliers.find((x) => x.id === p.sup) : null;
+      const u = users.find((x) => x.id === it.userId);
+      rows.push([fmtDate(it.ts), locName(it.loc), deptOf(it.dept).name, sup?.name || "", p?.name || "", p?.um || "", it.qty, it.status, u?.name || "", it.note || "", it.orderNote || "", it.deliveryDate || "", it.sentTs ? fmtDate(it.sentTs) : "", it.sentBy ? (users.find((x) => x.id === it.sentBy)?.name || "") : ""]);
+    });
+    if (rows.length === 1) { showToast("Nicio comanda pentru export"); return; }
+    const csv = rows.map((r) => r.map(csvEsc).join(",")).join("\n");
+    downloadFile(`comenzi-turtha-${dateStamp()}.csv`, "\uFEFF" + csv, "text/csv;charset=utf-8");
+  };
+  const exportProductsCSV = () => {
+    const rows = [["Nume","Categorie","UM","Furnizor","Departamente","Pas","Min","Ambalaj","Activ"]];
+    products.forEach((p) => {
+      rows.push([p.name, p.cat, p.um, suppliers.find((x) => x.id === p.sup)?.name || p.sup, (p.depts || []).map((d) => deptOf(d).name).join(" / "), p.stepQty || "", p.minQty || "", p.packLabel || "", p.pending ? "propunere" : "da"]);
+    });
+    const csv = rows.map((r) => r.map(csvEsc).join(",")).join("\n");
+    downloadFile(`produse-turtha-${dateStamp()}.csv`, "\uFEFF" + csv, "text/csv;charset=utf-8");
+  };
+  const exportAuditCSV = () => {
+    const rows = [["Data","User","Actiune","Entitate","IdEntitate","Locatie","Detalii"]];
+    auditLog.forEach((a) => rows.push([fmtDate(a.ts), a.userName, a.action, a.entity || "", a.entityId != null ? a.entityId : "", a.loc || "", a.details || ""]));
+    if (rows.length === 1) { showToast("Jurnal gol"); return; }
+    const csv = rows.map((r) => r.map(csvEsc).join(",")).join("\n");
+    downloadFile(`jurnal-turtha-${dateStamp()}.csv`, "\uFEFF" + csv, "text/csv;charset=utf-8");
+  };
+  const exportBackupJSON = () => {
+    const backup = { users, products, suppliers, locations, items, receptions, receptionMeta, devices, seq, auditLog, exportedAt: new Date().toISOString() };
+    downloadFile(`backup-turtha-${dateStamp()}.json`, JSON.stringify(backup, null, 2), "application/json");
   };
 
   // ---------- LOGIN (doar PIN, fara lista de utilizatori) ----------
@@ -967,7 +1010,7 @@ export default function NecesarTurtha() {
   ];
 
   const approverOptions = users.filter((u) => !u.pending && (u.role === "aprobator" || u.role === "admin"));
-  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locatii", "furnizori", "jurnal"] : isApprover ? ["utilizatori", "nomenclator", "locatii"] : ["utilizatori"];
+  const adminViews = isAdmin ? ["utilizatori", "nomenclator", "locatii", "furnizori", "jurnal", "export"] : isApprover ? ["utilizatori", "nomenclator", "locatii"] : ["utilizatori"];
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "#EFF1EC", fontFamily: "ui-sans-serif, system-ui" }}>
@@ -1520,6 +1563,27 @@ export default function NecesarTurtha() {
                   ))}
                   {auditLog.length === 0 && <div className="text-center text-sm text-stone-500 py-8">Niciun eveniment inregistrat inca.</div>}
                 </div>
+              </div>
+            )}
+
+            {adminView === "export" && isAdmin && (
+              <div className="space-y-3">
+                <div className="bg-white rounded-xl border border-stone-200 p-3">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold mb-2">Export comenzi</div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input type="date" value={exportDay} onChange={(e) => setExportDay(e.target.value)}
+                      className="text-xs border border-stone-300 rounded-lg px-2 py-2 bg-white text-stone-600" />
+                    <span className="text-[11px] text-stone-400">gol = toate zilele</span>
+                  </div>
+                  <button onClick={exportOrdersCSV} className="w-full py-2 rounded-lg bg-stone-900 text-white text-sm font-semibold">Export comenzi (CSV)</button>
+                </div>
+                <div className="bg-white rounded-xl border border-stone-200 p-3 space-y-2">
+                  <div className="text-xs uppercase tracking-wider text-stone-500 font-semibold">Alte exporturi</div>
+                  <button onClick={exportProductsCSV} className="w-full py-2 rounded-lg bg-stone-200 text-stone-800 text-sm font-semibold">Export produse (CSV)</button>
+                  <button onClick={exportAuditCSV} className="w-full py-2 rounded-lg bg-stone-200 text-stone-800 text-sm font-semibold">Export jurnal (CSV)</button>
+                  <button onClick={exportBackupJSON} className="w-full py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold">Backup complet (JSON)</button>
+                </div>
+                <div className="text-[11px] text-stone-400">CSV-urile de comenzi contin coloane pentru locatie si furnizor, deci poti filtra/grupa direct in Excel.</div>
               </div>
             )}
           </div>
